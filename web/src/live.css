@@ -1,0 +1,39 @@
+/* ---- live build: stage 1 (accounts, profile, shared feed) ---- */
+[data-nav="teams"], [data-nav="chats"], [data-nav="admin"], #bell, .col-chat, #stackbar { display: none !important; }
+[data-q="online"], [data-q="verified"], [data-pd="10080"] { display: none !important; }
+.field:has(> .lbl > .pro), .field:has(> #ob-nick), label.check:has(#pf2-showc) { display: none !important; }
+.demo-line:empty { display: none; }
+nav.bottom .in { grid-template-columns: repeat(3, 1fr); }
+.me-btn.guest { display: flex; }
+.lv-in { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 10px; font-size: 13.5px; font-weight: 600; color: var(--fg); white-space: nowrap; }
+.me-btn.guest:hover .lv-in { border-color: var(--accent-line); }
+.gt.none .gt-meta { color: var(--faint); }
+.lv-fav { display: inline-flex; color: var(--accent-text); }
+.lv-fav svg.i { width: 14px; height: 14px; fill: currentColor; }
+button.lock.lv-lock { background: none; cursor: pointer; color: var(--fg-2); font: inherit; font-size: 13px; }
+button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); }
+.empty.lv-first { padding: 44px 20px; }
+.empty.lv-first span { max-width: 44ch; color: var(--fg-2); font-size: 15px; line-height: 1.5; }
+.lv-form { display: grid; gap: 16px; }
+.lv-lead { margin: 0; color: var(--fg-2); font-size: 14.5px; line-height: 1.5; }
+.lv-links2 { display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: space-between; }
+.lv-a { background: none; border: 0; padding: 4px 0; color: var(--accent-text); font-size: 13.5px; text-align: left; cursor: pointer; }
+.lv-a:hover { text-decoration: underline; }
+.lv-consent { align-items: flex-start; font-size: 13.5px; line-height: 1.45; }
+.lv-consent a, .lv-links a { color: var(--accent-text); }
+.lv-code { font-size: 22px; letter-spacing: .3em; text-align: center; }
+.lv-dev { margin: 0; padding: 10px 12px; border: 1px dashed var(--accent-line); border-radius: 10px; font-size: 13.5px; color: var(--fg-2); }
+.lv-wide { flex: 1; justify-content: center; }
+.btn.primary.lv-danger { background: var(--danger, #e5484d); border-color: transparent; color: #fff; }
+.lv-id { display: grid; gap: 2px; flex: 1 1 200px; min-width: 0; }
+.lv-id b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; }
+.lv-id span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.lv-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+@media (min-width: 820px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .col-feed, .col-page { max-width: 860px; }
+}
+@media (min-width: 1200px) {
+  .grid { grid-template-columns: 268px minmax(0, 1fr); }
+  .col-page { grid-column: 1 / 3; }
+}

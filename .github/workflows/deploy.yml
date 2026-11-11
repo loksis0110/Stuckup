@@ -1,0 +1,56 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tests
+        run: node --test dev/test.js
+      - name: Deploy to Yandex Cloud
+        id: deploy
+        env:
+          YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+          YC_FOLDER_ID: b1g7n62tr9j79si1bmo6
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+        run: |
+          set +e
+          bash tools/deploy.sh > "$RUNNER_TEMP/deploy.log" 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/deploy.log"
+      - name: Publish deploy log
+        if: always()
+        env:
+          YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          CODE: ${{ steps.deploy.outputs.code }}
+        run: |
+          python3 tools/publish_log.py "$RUNNER_TEMP/deploy.log" "$RUNNER_TEMP/out"
+          cd "$RUNNER_TEMP/out"
+          git init -q -b deploy-logs
+          git config user.name "stuckup-deploy"
+          git config user.email "deploy@stuckup.ru"
+          git add -A
+          git commit -q -m "deploy log for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" deploy-logs
+      - name: Result
+        if: steps.deploy.outputs.code != '0'
+        run: exit 1

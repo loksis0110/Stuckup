@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} — Stuckup</title>
+<meta name="description" content="{{DESC}}">
+<link rel="canonical" href="{{SITE}}{{PATH}}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0d12">
+<style>
+@font-face{font-family:"Unbounded";src:url(/fonts/Unbounded.woff) format("woff");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Onest";src:url(/fonts/Onest.woff) format("woff");font-weight:100 900;font-display:swap}
+:root{--bg:#0b0d12;--panel:#12151c;--line:#232836;--fg:#eef1f6;--fg2:#b6bdcb;--faint:#7d8697;--accent:#ffb000}
+@media (prefers-color-scheme: light){:root{--bg:#f5f6f8;--panel:#fff;--line:#dfe3ea;--fg:#12151c;--fg2:#3c4454;--faint:#6a7384;--accent:#b87a00}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 "Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{border-bottom:1px solid var(--line)}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+header .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+.brand{font:700 17px "Unbounded",system-ui,sans-serif;letter-spacing:.08em;color:var(--fg);text-decoration:none}
+.brand b{color:var(--accent);font-weight:700}
+a{color:var(--accent)}
+main{padding:36px 0 64px}
+h1{font:700 clamp(24px,5vw,32px)/1.2 "Unbounded",system-ui,sans-serif;margin:0 0 8px;text-wrap:balance}
+h2{font:600 18px/1.3 "Onest",system-ui,sans-serif;margin:34px 0 8px}
+p,li{color:var(--fg2)}
+ul{padding-left:22px}
+li{margin:4px 0}
+.upd{color:var(--faint);font-size:14px;margin:0 0 26px}
+.note{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:14px 16px;font-size:15px}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;font-size:14px;color:var(--faint)}
+footer a{color:var(--fg2);margin-right:16px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><a class="brand" href="/">STUCK<b>UP</b></a><a href="/">На сайт</a></div></header>
+<main><div class="wrap">
+{{BODY}}
+</div></main>
+<footer><div class="wrap"><a href="/">Главная</a><a href="/rules">Правила</a><a href="/privacy">Конфиденциальность</a><a href="https://t.me/Stuckup_gg_bot" rel="noopener">Связаться</a></div></footer>
+</body>
+</html>

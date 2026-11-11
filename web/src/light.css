@@ -1,0 +1,15 @@
+--bg: #f1f2f5; --bg-raise: rgba(241,242,245,.88); --glow: rgba(255,170,0,.14);
+    --surface: #ffffff; --surface-2: #f4f5f8; --surface-3: #e8ebf0;
+    --line: #dfe3ea; --line-2: #c9cfda;
+    --fg: #0f121a; --fg-2: #313847; --muted: #596273; --faint: #8a92a2;
+    --accent: #ffaa00; --accent-hi: #ffbb2e; --accent-ink: #1b1300; --accent-text: #985f00;
+    --accent-soft: rgba(255,170,0,.15); --accent-line: rgba(214,138,0,.6);
+    --ok: #10985a; --warn: #c45c00; --danger: #d23434; --overlay: rgba(15,18,26,.45); --shadow: rgba(20,24,34,.16);
+    --g-dota: #d4422b; --g-cs2: #1f78d6; --g-pubg: #a77d1c; --g-fortnite: #6d4ee0;
+    --g-val: #d42e55; --g-lol: #12918a; --g-dl: #5a6b80; --g-rv: #cf5f12; --g-apex: #5a9418; --g-so: #0f9a74; --g-pm: #c93a8c;
+    --pr0: #6c7584; --pr1: #2a8fd4; --pr2: #2f5fe0; --pr3: #8a43e0; --pr4: #cf2f9f; --pr5: #d62f2f; --pr6: #b07c00;
+    --fc1: #7d838e; --fc2: #13a64a; --fc4: #c29400; --fc8: #e0620a; --fc10: #d91f1f;
+    --tb: #a8673a; --ts: #7b8696; --tg: #b38a0c; --tp: #13998a; --tc: #1d98cf; --td: #3a6ae0; --tm: #9a3fe0;
+    --te: #7a5ee0; --tch: #d06a12; --tu: #d63a74; --tcr: #1f9a77; --tlg: #2a8cc8; --tim: #d6402e;
+    --av-s: 48%; --av-l: 47%;
+    color-scheme: light;
