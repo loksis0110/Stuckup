@@ -17,8 +17,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Tests
-        run: node --test dev/test.js
       - name: Deploy to Yandex Cloud
         id: deploy
         env:
@@ -32,8 +30,10 @@ jobs:
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
         run: |
           set +e
-          bash tools/deploy.sh > "$RUNNER_TEMP/deploy.log" 2>&1
-          echo "code=$?" >> "$GITHUB_OUTPUT"
+          node --test dev/test.js > "$RUNNER_TEMP/deploy.log" 2>&1
+          CODE=$?
+          if [ "$CODE" = "0" ]; then bash tools/deploy.sh > "$RUNNER_TEMP/deploy.log" 2>&1; CODE=$?; else echo "TESTS FAILED" >> "$RUNNER_TEMP/deploy.log"; fi
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/deploy.log"
       - name: Publish deploy log
         if: always()

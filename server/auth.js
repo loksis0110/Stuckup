@@ -22,7 +22,12 @@ async function checkPassword(pw, stored) {
 
 function newId(n) { return b64u(crypto.randomBytes(n || 9)); }
 // Time-sortable id: fixed-width base36 milliseconds + random tail
-function timeId() { return Date.now().toString(36).padStart(9, "0") + b64u(crypto.randomBytes(5)); }
+let lastMs = 0, seq = 0;
+function timeId() {
+  let ms = Date.now();
+  if (ms <= lastMs) { ms = lastMs; seq++; } else { lastMs = ms; seq = 0; }
+  return ms.toString(36).padStart(9, "0") + seq.toString(36).padStart(2, "0") + b64u(crypto.randomBytes(4));
+}
 
 function newCode() { return String(crypto.randomInt(0, 1000000)).padStart(6, "0"); }
 function codeHash(email, code) { return hmac("code|" + email + "|" + code); }
