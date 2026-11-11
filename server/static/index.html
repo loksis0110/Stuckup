@@ -802,6 +802,78 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .lv-fc .inp { min-width: 0; }
 #ps-link .acc a.btn { text-decoration: none; }
 
+/* ================= interface v2: quiet by default, detailed on demand ================= */
+.hdr-in, .railwrap, .grid { max-width: 1160px; margin-inline: auto; }
+/* games: slim pills instead of tiles */
+.railwrap { padding-block: 10px 2px; gap: 8px; }
+.rail { gap: 6px; padding: 2px 4px; }
+.gt.lv-gt { flex: 0 0 auto; min-width: 0; display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; background: none; }
+.gt.lv-gt::before, .gt.lv-gt::after { display: none; }
+.gt.lv-gt .gt-name { font-size: 13.5px; font-weight: 600; }
+.gt.lv-gt.none .gt-name { color: var(--muted); }
+.gt.lv-gt[aria-pressed="true"] { border-color: var(--g); background: color-mix(in oklab, var(--g) 14%, transparent); }
+.gt.lv-gt[aria-pressed="true"] .gt-name { color: var(--fg); }
+.lv-gn { font: 600 11px var(--f-mono); color: var(--g); min-width: 16px; text-align: center; }
+.gt.lv-gt[data-game="all"] .lv-gn { color: var(--accent-text); }
+/* filters live behind one button on every screen */
+.col-filters { display: none !important; }
+.qc-f { display: inline-flex !important; }
+.quick { gap: 6px; }
+.qc { height: 32px; font-size: 13px; }
+/* feed rows */
+.list { gap: 6px; }
+.card.lv-row { padding: 0; gap: 0; border-radius: 14px; transition: border-color .15s, background .15s; }
+.card.lv-row:hover { transform: none; border-color: var(--line-2); }
+.card.lv-row.open { border-color: color-mix(in oklab, var(--g) 55%, var(--line)); }
+.lv-rh { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; text-align: left; color: inherit; background: none; border: 0; cursor: pointer; min-width: 0; }
+.lv-rh .av { width: 38px; height: 38px; border-radius: 11px; font-size: 12px; flex: none; }
+.lv-rw { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.lv-rn { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; }
+.lv-rn b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-rn .mine-tag { flex: none; }
+.lv-rn svg.i { width: 14px; height: 14px; }
+.lv-match { display: inline-flex; color: var(--accent-text); }
+.lv-rm { display: flex; align-items: center; gap: 4px 10px; font-size: 12.5px; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; }
+.lv-rm .lv-need { color: var(--fg-2); font-weight: 600; }
+.lv-rm .lv-roles { overflow: hidden; text-overflow: ellipsis; }
+.lv-rh .rank, .lv-rh .rk, .lv-rh > [class*="badge"], .lv-rh > .b { flex: none; }
+.lv-chev { width: 16px; height: 16px; flex: none; color: var(--faint); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s; }
+[aria-expanded="true"] > .lv-chev, h2[aria-expanded="true"] .lv-chev { transform: rotate(180deg); }
+.lv-rb { display: grid; gap: 12px; padding: 2px 14px 14px 64px; animation: lvIn .16s ease-out; }
+.lv-rb .note { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--fg); }
+.lv-rb .tags { margin: 0; }
+.lv-rc { display: flex; flex-wrap: wrap; gap: 6px; }
+.lv-ra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lv-ra .sp { flex: 1; }
+.lv-ra .iconbtn.on { color: var(--accent-text); }
+@keyframes lvIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lv-rb { animation: none; } .lv-chev { transition: none; } }
+@media (max-width: 560px) {
+  .lv-rh { gap: 10px; padding: 10px 12px; }
+  .lv-rb { padding: 2px 12px 12px; }
+  .lv-rm .gtag + span { display: none; }
+}
+/* layout: one calm column, chats beside it only when there is something to show */
+@media (min-width: 820px) {
+  .grid { grid-template-columns: minmax(0, 1fr) 340px !important; gap: 20px; }
+  .col-feed, .col-page { grid-column: 1 !important; max-width: none; }
+  .col-chat { grid-column: 2 !important; }
+  body.lv-nochat .grid { grid-template-columns: minmax(0, 760px) !important; justify-content: center; }
+  body.lv-nochat .col-chat { display: none; }
+  body.lv-nochat .railwrap, body.lv-nochat [data-view="profile"] .col-page { max-width: 760px; }
+}
+/* profile: folded sections */
+.psec-nav { display: none !important; }
+.panel.lv-fold h2.sec { cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
+.panel.lv-fold h2.sec .lv-chev { margin-left: auto; }
+.panel.lv-fold .panel-h h2.sec { flex: 1; }
+.panel.lv-fold .panel-h h2.sec .lv-chev { margin-left: 4px; }
+.panel.lv-fold.shut { gap: 0; padding-block: 14px; }
+.panel.lv-fold.shut > *:not(h2):not(.panel-h):not(.field:has(> h2.sec)) { display: none !important; }
+.panel.lv-fold.shut .panel-h > *:not(h2), .panel.lv-fold.shut .field:has(> h2.sec) > *:not(h2) { display: none !important; }
+.pgrid { gap: 10px; }
+@media (max-width: 560px) { .lv-rn .mine-tag { display: none; } }
+
 @media (max-width: 639px) {
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .slot, .slot .av { width: 38px; height: 38px; border-radius: 10px; }
@@ -1939,7 +2011,7 @@ function setView__base(v) {
   window.scrollTo(0, 0);
 }
 function renderPage() { if (S.view === "profile") renderProfile(); else if (S.view === "teams") renderTeams(); else if (S.view === "admin") renderAdmin(); }
-function renderAll() { applyLang(); renderRail(); renderQuick(); renderFilters(); renderSetup(); renderStack(); renderFeed(); renderChat(); renderPage(); }
+function renderAll__base() { applyLang(); renderRail(); renderQuick(); renderFilters(); renderSetup(); renderStack(); renderFeed(); renderChat(); renderPage(); }
 
 /* ================= sheets ================= */
 function openSheet(title, body, foot, onMount) {
@@ -3180,15 +3252,6 @@ function applyLang() {
   if (!ME) { b.innerHTML = `<span class="lv-in">${esc(t("lv_login"))}</span>`; b.setAttribute("aria-label", t("lv_login")); }
   b.classList.toggle("guest", !ME);
 }
-function renderRail() {
-  const act = activePosts();
-  const tile = (k, name, color, mob) => {
-    if (S.view === "teams") { const all = allTeams(), c = k === "all" ? all.length : all.filter(x => x.game === k).length; return `<button class="gt${c ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})"><span class="gt-name">${esc(name)}${mob ? `<small>${esc(t("mobile"))}</small>` : ""}</span><span class="gt-meta">${esc(t("teams_n", c))}</span></button>`; }
-    const n = k === "all" ? act.length : act.filter(p => p.game === k).length;
-    return `<button class="gt${n ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})"><span class="gt-name">${esc(name)}${mob ? `<small>${esc(t("mobile"))}</small>` : ""}</span><span class="gt-meta">${n ? '<i class="odot" aria-hidden="true"></i>' : ""}${esc(t("lv_looking", n))}</span></button>`;
-  };
-  $("#rail").innerHTML = tile("all", t("all"), "--accent") + railOrder().map(k => tile(k, gshort(k), GAMES[k].color, GAMES[k].mobile)).join("");
-}
 function filtered() {
   const f = S.f, q = S.q, txt = f.q.trim().toLowerCase(), now = Date.now();
   return activePosts().filter(p => {
@@ -3211,18 +3274,6 @@ function filtered() {
     if (txt && !(p.nick.toLowerCase().includes(txt) || noteOf(p).toLowerCase().includes(txt))) return false;
     return true;
   }).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || (S.favs.includes(b.uid) ? 1 : 0) - (S.favs.includes(a.uid) ? 1 : 0) || (b.on ? 1 : 0) - (a.on ? 1 : 0) || b.t0 - a.t0);
-}
-function card(p) {
-  const G = GAMES[p.game], match = !p.mine && !!ME && isMatch(p), fav = !p.mine && S.favs.includes(p.uid), id = esc(p.id);
-  const who = `<button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button>`;
-  const av = `<button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, p.on && !p.mine)}</button>`;
-  const tagline = p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : "";
-  const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${p.ver ? `<span class="ver" title="${esc(t("lv_verified"))}">${ICON.shield}</span>` : ""}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
-  const note = noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : "";
-  const foot = p.mine
-    ? `<div class="c-foot">${needHtml(p)}</div><div class="c-foot">${expHtml(p)}<div class="c-acts"><button class="btn small" data-action="renew" data-id="${id}">${ICON.refresh}${esc(t("renew", durLabel(p.dur)))}</button><button class="iconbtn" data-action="del-post" data-id="${id}" aria-label="${esc(t("del"))}" title="${esc(t("del"))}">${ICON.trash}</button></div></div>`
-    : `<div class="c-foot">${needHtml(p)}${match ? `<span class="match">${ICON.target}${esc(t("match_tag"))}</span>` : ""}<div class="c-acts"><button class="btn small" data-action="player" data-id="${id}">${esc(t("lv_contacts_btn"))}</button><button class="btn primary small" data-action="open-chat" data-id="${id}">${ICON.chat}${esc(t("write"))}</button></div></div>`;
-  return `<article class="card${p.mine ? " mine" : ""}" data-id="${id}" style="--g:var(${G.color})">${head}${note}${foot}</article>`;
 }
 function pickCard(x) {
   const p = x.p, id = esc(p.id);
@@ -3549,6 +3600,7 @@ function renderProfile() {
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
   h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
+  profileFold();
   loadComments(ME.id);
 }
 function miniSheet(title, inner, btnLabel, danger, onSubmit) {
@@ -4028,6 +4080,52 @@ async function socialRoute(kind, arg) {
   if (me.ok && me.user) { adoptUser(me.user); setView("profile"); renderAll(); const el = $("#ps-link"); if (el) el.scrollIntoView({ block: "start" }); toast(t(arg === "steam_norank" ? "lv_steam_norank" : "lv_linked")); }
 }
 
+/* ---------- interface: compact rows that open on demand ---------- */
+Object.assign(T.ru, { lv_more: "Профиль", lv_all_games: "Все" });
+Object.assign(T.en, { lv_more: "Profile", lv_all_games: "All" });
+const CHEV = '<svg class="i lv-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+
+function card(p) {
+  const G = GAMES[p.game], open = LV.open === p.id, id = esc(p.id), match = !p.mine && !!ME && isMatch(p), fav = !p.mine && S.favs.includes(p.uid);
+  const size = partySize(p), have = Math.min(p.have || 1, size - 1);
+  const marks = (p.ver ? `<span class="ver" title="${esc(t("lv_verified"))}">${ICON.shield}</span>` : "") + (fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : "") + (match ? `<span class="lv-match" title="${esc(t("match_tag"))}">${ICON.target}</span>` : "");
+  const head = `<button class="lv-rh" data-action="lv-open" data-id="${id}" aria-expanded="${open}">${avatar(p.nick, p.on && !p.mine)}<span class="lv-rw"><span class="lv-rn"><b>${esc(p.nick)}</b>${marks}${p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : ""}</span><span class="lv-rm"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span class="lv-need">${esc(t("need_short", size - have))}</span><span class="lv-roles">${esc(p.roles.map(r => roleName(p.game, r)).join(", "))}</span></span></span>${badge(p.r)}${CHEV}</button>`;
+  let body = "";
+  if (open) {
+    const tags = `${p.style ? `<span class="sty">${esc(t("styles")[p.style])}</span>` : ""}${(p.stags || []).map(x => `<span class="safe">${esc(t("stags")[x])}</span>`).join("")}<span>${ICON.globe}${esc(regionName(p.region))} · ${esc(p.langs.map(x => x.toUpperCase()).join("/"))}</span><span>${p.mic ? ICON.mic + esc(t("mic")) : ICON.nomic + esc(t("no_mic"))}</span>${(p.when || []).map(w => `<span>${ICON.clock}${esc(t("times")[w])}</span>`).join("")}<span>${esc(rel(p.t0))}</span>`;
+    const acts = p.mine
+      ? `<div class="lv-ra">${expHtml(p)}<span class="sp"></span><button class="btn small" data-action="renew" data-id="${id}">${ICON.refresh}${esc(t("renew", durLabel(p.dur)))}</button><button class="iconbtn" data-action="del-post" data-id="${id}" aria-label="${esc(t("del"))}" title="${esc(t("del"))}">${ICON.trash}</button></div>`
+      : `<div class="lv-ra"><button class="btn primary small" data-action="open-chat" data-id="${id}">${ICON.chat}${esc(t("write"))}</button><button class="btn small${S.stacks[p.game].includes(p.uid) ? " on" : ""}" data-action="toggle-stack" data-id="${id}">${S.stacks[p.game].includes(p.uid) ? ICON.check + esc(t("in_stack")) : ICON.plus + esc(t("lv_stack_add"))}</button><button class="iconbtn${fav ? " on" : ""}" data-action="fav" data-id="${id}" aria-pressed="${fav}" aria-label="${esc(fav ? t("fav_on") : t("fav_add"))}" title="${esc(fav ? t("fav_on") : t("fav_add"))}">${ICON.star}</button><span class="sp"></span><button class="btn ghost small" data-action="player" data-id="${id}">${esc(t("lv_more"))}</button></div>`;
+    body = `<div class="lv-rb">${noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : ""}<div class="tags">${tags}</div>${hasC(p) ? `<div class="lv-rc">${contactsInner(p)}</div>` : ""}${acts}</div>`;
+  }
+  return `<article class="card lv-row${p.mine ? " mine" : ""}${open ? " open" : ""}" data-id="${id}" style="--g:var(${G.color})">${head}${body}</article>`;
+}
+function toggleRow(id) {
+  const prev = LV.open; LV.open = prev === id ? null : id;
+  [prev, id].forEach(x => { if (!x) return; const p = findPost(x); $$('.lv-row[data-id="' + x + '"]').forEach(el => { if (p) el.outerHTML = card(p); }); });
+}
+function renderRail() {
+  const act = activePosts(), teams = S.view === "teams", all = teams ? allTeams() : null;
+  const pill = (k, name, color) => {
+    const n = teams ? (k === "all" ? all.length : all.filter(x => x.game === k).length) : (k === "all" ? act.length : act.filter(p => p.game === k).length);
+    return `<button class="gt lv-gt${n ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})" title="${esc(teams ? t("teams_n", n) : t("lv_looking", n))}"><span class="gt-name">${esc(name)}</span>${n ? `<b class="lv-gn">${n}</b>` : ""}</button>`;
+  };
+  $("#rail").innerHTML = pill("all", t("lv_all_games"), "--accent") + railOrder().map(k => pill(k, gshort(k), GAMES[k].color)).join("");
+}
+function renderAll() { renderAll__base(); uiState(); }
+function uiState() { document.body.classList.toggle("lv-nochat", !ME || (!Object.keys(S.chats || {}).length && S.view !== "chats")); }
+// profile sections fold: only the essentials are open by default
+function profileFold() {
+  LV.fold = LV.fold || { "ps-main": true, "ps-games": true, "ps-posts": true };
+  $$("#page .pgrid > .panel").forEach(el => {
+    const h = el.querySelector("h2.sec"); if (!h || !el.id) return;
+    const open = !!LV.fold[el.id];
+    el.classList.add("lv-fold"); el.classList.toggle("shut", !open);
+    h.insertAdjacentHTML("beforeend", CHEV); h.dataset.action = "lv-fold"; h.dataset.p = el.id; h.setAttribute("role", "button"); h.tabIndex = 0; h.setAttribute("aria-expanded", String(open));
+  });
+}
+function foldPanel(id) { LV.fold[id] = !LV.fold[id]; const el = document.getElementById(id); if (el) { el.classList.toggle("shut", !LV.fold[id]); const h = el.querySelector("h2.sec"); if (h) h.setAttribute("aria-expanded", String(!!LV.fold[id])); } }
+
 /* ================= boot ================= */
 const teamsSoon = () => refreshTeams().then(teamsDraw);
 document.addEventListener("click", e => {
@@ -4039,7 +4137,8 @@ document.addEventListener("click", e => {
     "lv-retry": () => { LV.loadErr = false; renderFeed(); start(); },
     "lv-logout": logout, "lv-nick": nickSheet, "lv-delete-acc": deleteAccSheet,
     "renew": () => renewPost(id), "del-post": () => deletePost(id),
-    "clear-stack": () => clearStack(a.dataset.g)
+    "clear-stack": () => clearStack(a.dataset.g),
+    "lv-open": () => toggleRow(id), "lv-fold": () => foldPanel(a.dataset.p)
   };
   const fn = H[a.dataset.action];
   if (fn) { e.preventDefault(); e.stopPropagation(); fn(); }

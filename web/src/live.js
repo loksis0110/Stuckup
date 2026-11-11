@@ -213,15 +213,6 @@ function applyLang() {
   if (!ME) { b.innerHTML = `<span class="lv-in">${esc(t("lv_login"))}</span>`; b.setAttribute("aria-label", t("lv_login")); }
   b.classList.toggle("guest", !ME);
 }
-function renderRail() {
-  const act = activePosts();
-  const tile = (k, name, color, mob) => {
-    if (S.view === "teams") { const all = allTeams(), c = k === "all" ? all.length : all.filter(x => x.game === k).length; return `<button class="gt${c ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})"><span class="gt-name">${esc(name)}${mob ? `<small>${esc(t("mobile"))}</small>` : ""}</span><span class="gt-meta">${esc(t("teams_n", c))}</span></button>`; }
-    const n = k === "all" ? act.length : act.filter(p => p.game === k).length;
-    return `<button class="gt${n ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})"><span class="gt-name">${esc(name)}${mob ? `<small>${esc(t("mobile"))}</small>` : ""}</span><span class="gt-meta">${n ? '<i class="odot" aria-hidden="true"></i>' : ""}${esc(t("lv_looking", n))}</span></button>`;
-  };
-  $("#rail").innerHTML = tile("all", t("all"), "--accent") + railOrder().map(k => tile(k, gshort(k), GAMES[k].color, GAMES[k].mobile)).join("");
-}
 function filtered() {
   const f = S.f, q = S.q, txt = f.q.trim().toLowerCase(), now = Date.now();
   return activePosts().filter(p => {
@@ -244,18 +235,6 @@ function filtered() {
     if (txt && !(p.nick.toLowerCase().includes(txt) || noteOf(p).toLowerCase().includes(txt))) return false;
     return true;
   }).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || (S.favs.includes(b.uid) ? 1 : 0) - (S.favs.includes(a.uid) ? 1 : 0) || (b.on ? 1 : 0) - (a.on ? 1 : 0) || b.t0 - a.t0);
-}
-function card(p) {
-  const G = GAMES[p.game], match = !p.mine && !!ME && isMatch(p), fav = !p.mine && S.favs.includes(p.uid), id = esc(p.id);
-  const who = `<button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button>`;
-  const av = `<button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, p.on && !p.mine)}</button>`;
-  const tagline = p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : "";
-  const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${p.ver ? `<span class="ver" title="${esc(t("lv_verified"))}">${ICON.shield}</span>` : ""}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
-  const note = noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : "";
-  const foot = p.mine
-    ? `<div class="c-foot">${needHtml(p)}</div><div class="c-foot">${expHtml(p)}<div class="c-acts"><button class="btn small" data-action="renew" data-id="${id}">${ICON.refresh}${esc(t("renew", durLabel(p.dur)))}</button><button class="iconbtn" data-action="del-post" data-id="${id}" aria-label="${esc(t("del"))}" title="${esc(t("del"))}">${ICON.trash}</button></div></div>`
-    : `<div class="c-foot">${needHtml(p)}${match ? `<span class="match">${ICON.target}${esc(t("match_tag"))}</span>` : ""}<div class="c-acts"><button class="btn small" data-action="player" data-id="${id}">${esc(t("lv_contacts_btn"))}</button><button class="btn primary small" data-action="open-chat" data-id="${id}">${ICON.chat}${esc(t("write"))}</button></div></div>`;
-  return `<article class="card${p.mine ? " mine" : ""}" data-id="${id}" style="--g:var(${G.color})">${head}${note}${foot}</article>`;
 }
 function pickCard(x) {
   const p = x.p, id = esc(p.id);
@@ -582,6 +561,7 @@ function renderProfile() {
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
   h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
+  profileFold();
   loadComments(ME.id);
 }
 function miniSheet(title, inner, btnLabel, danger, onSubmit) {
@@ -759,7 +739,8 @@ document.addEventListener("click", e => {
     "lv-retry": () => { LV.loadErr = false; renderFeed(); start(); },
     "lv-logout": logout, "lv-nick": nickSheet, "lv-delete-acc": deleteAccSheet,
     "renew": () => renewPost(id), "del-post": () => deletePost(id),
-    "clear-stack": () => clearStack(a.dataset.g)
+    "clear-stack": () => clearStack(a.dataset.g),
+    "lv-open": () => toggleRow(id), "lv-fold": () => foldPanel(a.dataset.p)
   };
   const fn = H[a.dataset.action];
   if (fn) { e.preventDefault(); e.stopPropagation(); fn(); }
