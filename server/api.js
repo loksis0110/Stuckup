@@ -422,6 +422,7 @@ module.exports = function makeApi(db, opts) {
       // deploy-time check: sends a test letter to the site's own mailbox
       const k = process.env.SMOKE_KEY; if (!k || !A.safeEq(req.headers["x-smoke-key"] || "", k)) throw new Http(403, "forbidden");
       if (req.json.what === "tg") return { body: await social.tgCheck() };
+      if (req.json.what === "net") return { body: await social.netCheck() };
       if (mail.mode() !== "smtp") return { body: { ok: false, err: "not configured" } };
       try { await mail.sendCode(mail.cfg().from, "000000", "ru", "reg"); return { body: { ok: true } }; } catch (e) { return { body: { ok: false, err: String(e.message).slice(0, 200) } }; }
     }],

@@ -63,7 +63,7 @@ fi
 say "site url for links: $SITE_URL"
 TG_HOOK_SECRET=$(printf 'tghook|%s' "$YC_SA_KEY" | sha256sum | cut -d' ' -f1)
 BUILD="${GITHUB_SHA:-local}"; BUILD="${BUILD:0:7}"
-ENVS=(--environment "DOCAPI_ENDPOINT=$DOCAPI" --environment "TABLE_NAME=$NAME" --environment "SESSION_SECRET=$SESSION_SECRET" --environment "SMOKE_KEY=$SMOKE_KEY" --environment "BUILD=$BUILD" --environment "TG_HOOK_SECRET=$TG_HOOK_SECRET" --environment "SITE_URL=$SITE_URL")
+ENVS=(--environment "DOCAPI_ENDPOINT=$DOCAPI" --environment "TABLE_NAME=$NAME" --environment "SESSION_SECRET=$SESSION_SECRET" --environment "SMOKE_KEY=$SMOKE_KEY" --environment "BUILD=$BUILD" --environment "TG_ENABLED=0" --environment "TG_HOOK_SECRET=$TG_HOOK_SECRET" --environment "SITE_URL=$SITE_URL")
 if [ -n "${SMTP_HOST:-}" ] && [ -n "${SMTP_USER:-}" ] && [ -n "${SMTP_PASS:-}" ]; then
   ENVS+=(--environment "SMTP_HOST=$SMTP_HOST" --environment "SMTP_PORT=${SMTP_PORT:-465}" --environment "SMTP_USER=$SMTP_USER" --environment "SMTP_PASS=$SMTP_PASS" --environment "MAIL_FROM=${MAIL_FROM:-$SMTP_USER}")
   say "mail: smtp via $SMTP_HOST"
@@ -130,6 +130,9 @@ if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
   say "telegram webhook state before: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo" | jq -c '.result | {pending_update_count, last_error_date, last_error_message, url: (.url | sub("https://";""))}' 2>/dev/null)"
   say "telegram: webhook off (updates are pulled) $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/deleteWebhook" | head -c 120)"
   say "telegram from the function: $(curl -s --max-time 25 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d '{"what":"tg"}' "https://$DOMAIN/api/health/mail")"
+fi
+say "outbound from the function: $(curl -s --max-time 40 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d '{"what":"net"}' "https://$DOMAIN/api/health/mail")"
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
   say "telegram bot: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe" | jq -r '.result.username // .description' 2>/dev/null)"
 fi
 say "7/7 smoke test"

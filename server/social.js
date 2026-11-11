@@ -25,7 +25,7 @@ const L = u => TEXT[u && u.lang === "en" ? "en" : "ru"];
 module.exports = function makeSocial(ctx) {
   const { db, Http, need, limit, me, loginCookies, hooks } = ctx;
   const http = ctx.fetch || ((url, opt) => fetch(url, Object.assign({ signal: AbortSignal.timeout(6000) }, opt)));
-  const config = () => ({ tg: !!process.env.TELEGRAM_BOT_TOKEN, vk: !!process.env.VK_CLIENT_ID, faceit: !!process.env.FACEIT_API_KEY, steam: true, bot: BOT() });
+  const config = () => ({ tg: !!process.env.TELEGRAM_BOT_TOKEN && process.env.TG_ENABLED !== "0", vk: !!process.env.VK_CLIENT_ID, faceit: !!process.env.FACEIT_API_KEY, steam: true, bot: BOT() });
   const origin = req => { const h = String(req.headers["x-forwarded-host"] || req.headers.host || ""); return /^localhost(:\d+)?$/.test(h) ? "http://" + h : "https://" + h; };
 
   /* ---------- Telegram bot ---------- */
@@ -252,5 +252,14 @@ module.exports = function makeSocial(ctx) {
     try { const r = await http("https://api.telegram.org/bot" + tok + "/getMe"), j = await r.json(); return { ok: !!j.ok, ms: Date.now() - t0, bot: j.result && j.result.username }; }
     catch (e) { return { ok: false, ms: Date.now() - t0, err: String(e.message).slice(0, 120) }; }
   }
-  return { routes, config, push, pushMessage, userGone, tgCheck };
+  async function netCheck() {
+    const out = {};
+    for (const [k, url] of [["steam", "https://steamcommunity.com/openid/login"], ["opendota", "https://api.opendota.com/api/constants/patch"], ["faceit", "https://open.faceit.com/data/v4/games?limit=1"], ["vk", "https://id.vk.com/"], ["telegram", "https://api.telegram.org/"]]) {
+      const t0 = Date.now();
+      try { const r = await http(url, k === "faceit" ? { headers: { Authorization: "Bearer " + (process.env.FACEIT_API_KEY || "") } } : {}); out[k] = r.status + " in " + (Date.now() - t0) + "ms"; }
+      catch (e) { out[k] = "FAIL " + String(e.message).slice(0, 60); }
+    }
+    return out;
+  }
+  return { routes, config, push, pushMessage, userGone, tgCheck, netCheck };
 };
