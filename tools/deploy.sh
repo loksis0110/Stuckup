@@ -115,6 +115,7 @@ done
 if [ "$OK" != "1" ]; then say "ERROR: site did not come up"; exit 14; fi
 say "health: $(cat "$WORK/health.json")"
 
+if [ -n "${SMTP_HOST:-}" ]; then say "mail test: $(curl -s --max-time 20 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d '{}' "https://$DOMAIN/api/health/mail")"; fi
 say "7/7 smoke test"
 SMOKE_KEY="$SMOKE_KEY" node dev/smoke.js "https://$DOMAIN"
 

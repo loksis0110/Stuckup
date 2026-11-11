@@ -274,6 +274,12 @@ module.exports = function makeApi(db, opts) {
   const ROUTES = [
     ["GET", /^\/api\/health$/, async () => { let dbOk = true, err; try { await db.ping(); } catch (e) { dbOk = false; err = String(e.message).slice(0, 200); } return { status: dbOk ? 200 : 503, body: { ok: dbOk, db: dbOk, err, mail: mail.mode(), build: process.env.BUILD || "dev", now: Date.now() } }; }],
     ["GET", /^\/api\/config$/, async () => ({ body: { mail: mail.mode(), build: process.env.BUILD || "dev" } })],
+    ["POST", /^\/api\/health\/mail$/, async req => {
+      // deploy-time check: sends a test letter to the site's own mailbox
+      const k = process.env.SMOKE_KEY; if (!k || !A.safeEq(req.headers["x-smoke-key"] || "", k)) throw new Http(403, "forbidden");
+      if (mail.mode() !== "smtp") return { body: { ok: false, err: "not configured" } };
+      try { await mail.sendCode(mail.cfg().from, "000000", "ru", "reg"); return { body: { ok: true } }; } catch (e) { return { body: { ok: false, err: String(e.message).slice(0, 200) } }; }
+    }],
     ["POST", /^\/api\/auth\/register$/, register],
     ["POST", /^\/api\/auth\/verify$/, verify],
     ["POST", /^\/api\/auth\/resend$/, resend],
