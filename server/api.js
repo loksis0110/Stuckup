@@ -29,7 +29,7 @@ module.exports = function makeApi(db, opts) {
     return u;
   }
   async function need(req) { const u = await currentUser(req); if (!u) throw new Http(401, "auth"); return u; }
-  function me(u) { return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], created: u.created }; }
+  function me(u) { return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], stacks: u.stacks || {}, created: u.created }; }
   function view(p, viewer) {
     const o = Object.assign({}, p), has = !!(p.c && (p.c.dc || p.c.tg));
     o.hasC = has;
@@ -195,6 +195,13 @@ module.exports = function makeApi(db, opts) {
     const u = await need(req);
     if (!(await A.checkPassword(String(req.json.password == null ? "" : req.json.password), u.pass))) throw new Http(401, "bad_password");
     for (const g of Object.keys(u.posts || {})) await db.del("p", u.posts[g]);
+    for (const cv of await db.list("cv:" + u.id)) {
+      const cid = cidOf(u.id, cv.sk);
+      for (const m of await db.list("m:" + cid)) await db.del("m:" + cid, m.sk);
+      await db.del("cv:" + cv.sk, u.id); await db.del("cv:" + u.id, cv.sk);
+    }
+    for (const part of ["cm:" + u.id, "nt:" + u.id]) for (const r of await db.list(part)) await db.del(part, r.sk);
+    await db.del("nc", u.id); await db.del("on", u.id);
     await db.del("e", u.email); await db.del("n", V.nickKey(u.nick)); await db.del("u", u.id);
     feed = null;
     return { body: { ok: true }, cookies: [A.clearCookie()] };
@@ -281,7 +288,8 @@ module.exports = function makeApi(db, opts) {
     const u = await need(req), now = Date.now();
     if (req.query.beat === "1") await db.put("on", u.id, { t: now });
     const rows = await db.list("cv:" + u.id), on = (feed && feed.on) || {};
-    return { body: { chats: rows.map(r => Object.assign({}, r.d, { on: !!on[r.d.id] })), now } };
+    const nc = await db.get("nc", u.id);
+    return { body: { chats: rows.map(r => Object.assign({}, r.d, { on: !!on[r.d.id] })), notifs: (nc && nc.n) || 0, now } };
   }
   async function getChat(req, uid) {
     const u = await need(req), rows = await db.list("m:" + cidOf(u.id, uid)), after = String(req.query.after || "");
@@ -302,10 +310,79 @@ module.exports = function makeApi(db, opts) {
     await limit("msg:" + u.id, 40, 60000);
     const now = Date.now(), id = A.timeId(), short = text.slice(0, 80);
     await db.put("m:" + cidOf(u.id, uid), id, { id, from: u.id, text, t: now });
-    await db.put("cv:" + u.id, uid, { id: uid, nick: target.nick, last: short, t: now, from: u.id, unread: 0 });
-    const theirs = await db.get("cv:" + uid, u.id);
-    await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1 });
+    const mineCv = await db.get("cv:" + u.id, uid), theirs = await db.get("cv:" + uid, u.id);
+    await db.put("cv:" + u.id, uid, { id: uid, nick: target.nick, last: short, t: now, from: u.id, unread: 0, s: true, r: !!(mineCv && mineCv.r) });
+    await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1, s: !!(theirs && theirs.s), r: true });
     return { body: { msg: { id, me: true, text, t: now } } };
+  }
+
+
+  /* ---------- notifications ---------- */
+  async function notify(uid, k, a, go) {
+    const id = A.timeId();
+    await db.put("nt:" + uid, id, { id, k, a: a || [], go: go || null, t: Date.now(), read: false });
+    const nc = await db.get("nc", uid);
+    await db.put("nc", uid, { n: ((nc && nc.n) || 0) + 1 });
+  }
+  async function listNotifs(req) {
+    const u = await need(req), rows = await db.list("nt:" + u.id);
+    for (const r of rows.slice(0, Math.max(0, rows.length - 40))) await db.del("nt:" + u.id, r.sk);
+    return { body: { notifs: rows.slice(-40).reverse().map(r => r.d) } };
+  }
+  async function readNotifs(req) {
+    const u = await need(req), rows = await db.list("nt:" + u.id);
+    for (const r of rows) if (!r.d.read) { r.d.read = true; await db.put("nt:" + u.id, r.sk, r.d); }
+    await db.put("nc", u.id, { n: 0 });
+    return { body: { ok: true } };
+  }
+
+  /* ---------- stack (my party shortlist) ---------- */
+  async function setStack(req) {
+    const u = await need(req), b = req.json, G = META.games[b.game], id = String(b.uid || "");
+    if (!G) throw new Http(400, "bad_game");
+    u.stacks = u.stacks || {};
+    let list = (u.stacks[b.game] || []).filter(x => x.id !== id);
+    if (b.clear) list = [];
+    else if (b.on) {
+      if (id === u.id) throw new Http(400, "bad_target");
+      const target = await db.get("u", id); if (!target || target.banned) throw new Http(404, "bad_target");
+      if ((target.blocked || []).some(x => x.id === u.id)) throw new Http(403, "blocked_by");
+      if (list.length + 1 >= G.size) throw new Http(400, "stack_full");
+      await limit("stack:" + u.id, 40, 3600000);
+      list.push({ id, nick: target.nick });
+      await notify(id, "stack", [u.nick, b.game], { type: "chat", id: u.id });
+    }
+    if (list.length) u.stacks[b.game] = list; else delete u.stacks[b.game];
+    await db.put("u", u.id, u);
+    return { body: { stacks: u.stacks } };
+  }
+
+  /* ---------- comments about a player ---------- */
+  async function listComments(req, uid) {
+    const u = await currentUser(req), rows = await db.list("cm:" + uid);
+    let can = false;
+    if (u && u.id !== uid) { const cv = await db.get("cv:" + u.id, uid); can = !!(cv && cv.s && cv.r); }
+    return { body: { comments: rows.map(r => r.d).sort((a, b) => b.t - a.t).slice(0, 100), can } };
+  }
+  async function putComment(req, uid) {
+    const u = await need(req);
+    if (uid === u.id) throw new Http(400, "bad_target");
+    const cv = await db.get("cv:" + u.id, uid);
+    if (!cv || !cv.s || !cv.r) throw new Http(403, "need_chat");
+    const text = V.note(req.json.text);
+    if (text.length < 3) throw new Http(400, "empty");
+    await limit("cm:" + u.id, 20, 3600000);
+    const prev = await db.get("cm:" + uid, u.id);
+    await db.put("cm:" + uid, u.id, { from: u.id, nick: u.nick, text, t: Date.now() });
+    if (!prev) await notify(uid, "comment", [u.nick], { type: "profile" });
+    return listComments(req, uid);
+  }
+  async function delComment(req, uid) {
+    const u = await need(req), from = String(req.json.from || u.id);
+    // my own comment about someone, or any comment on my own page
+    if (from !== u.id && uid !== u.id) throw new Http(403, "forbidden");
+    await db.del("cm:" + uid, from);
+    return listComments(req, uid);
   }
 
   function originOk(origin, h) {
@@ -344,7 +421,13 @@ module.exports = function makeApi(db, opts) {
     ["POST", /^\/api\/reports$/, report],
     ["GET", /^\/api\/chats$/, listChats],
     ["GET", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, getChat],
-    ["POST", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, sendMessage]
+    ["POST", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, sendMessage],
+    ["GET", /^\/api\/notifs$/, listNotifs],
+    ["POST", /^\/api\/notifs\/read$/, readNotifs],
+    ["POST", /^\/api\/stack$/, setStack],
+    ["GET", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, listComments],
+    ["PUT", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, putComment],
+    ["DELETE", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, delComment]
   ];
 
   return async function handle(req) {

@@ -110,4 +110,4 @@ function post(input, prof) {
   };
 }
 
-module.exports = { META, Bad, email, password, nick, nickKey, profile, blankProfile, post, rank, contacts };
+module.exports = { META, Bad, email, password, nick, nickKey, profile, blankProfile, post, rank, contacts, note };

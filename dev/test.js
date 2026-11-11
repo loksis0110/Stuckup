@@ -167,3 +167,29 @@ test("chat, presence, archive", async () => {
   const d = await b("DELETE", "/api/posts/" + p.json.post.id, {}); assert.equal(d.json.archive.length, 1); assert.equal(d.json.archive[0].reason, "closed");
   assert.equal((await b("GET", "/api/me")).json.user.archive[0].game, "cs2");
 });
+
+test("notifications, stack, comments", async () => {
+  const a = client(), b = client();
+  const ua = await signup(a, "n1@example.com", "Nata"), ub = await signup(b, "n2@example.com", "Boris");
+  const st = await a("POST", "/api/stack", { uid: ub.id, game: "cs2", on: true });
+  assert.deepEqual(st.json.stacks, { cs2: [{ id: ub.id, nick: "Boris" }] });
+  assert.equal((await a("GET", "/api/me")).json.user.stacks.cs2.length, 1);
+  assert.equal((await b("GET", "/api/chats")).json.notifs, 1);
+  const nl = await b("GET", "/api/notifs"); assert.equal(nl.json.notifs[0].k, "stack"); assert.deepEqual(nl.json.notifs[0].a, ["Nata", "cs2"]);
+  await b("POST", "/api/notifs/read", {}); assert.equal((await b("GET", "/api/chats")).json.notifs, 0);
+  assert.deepEqual((await a("POST", "/api/stack", { game: "cs2", clear: true })).json.stacks, {});
+  // comments need a two-way conversation
+  assert.equal((await a("PUT", "/api/comments/" + ub.id, { text: "Отличный тиммейт" })).json.error, "need_chat");
+  await a("POST", "/api/chats/" + ub.id, { text: "привет" });
+  assert.equal((await a("PUT", "/api/comments/" + ub.id, { text: "Отличный тиммейт" })).json.error, "need_chat");
+  await b("POST", "/api/chats/" + ua.id, { text: "го" });
+  const c1 = await a("PUT", "/api/comments/" + ub.id, { text: "Отличный тиммейт" }); assert.equal(c1.status, 200, JSON.stringify(c1.json)); assert.equal(c1.json.comments.length, 1);
+  const c2 = await a("PUT", "/api/comments/" + ub.id, { text: "Отличный тиммейт, зову ещё" }); assert.equal(c2.json.comments.length, 1); assert.match(c2.json.comments[0].text, /зову/);
+  assert.equal((await client()("GET", "/api/comments/" + ub.id)).json.can, false);
+  assert.equal((await a("DELETE", "/api/comments/" + ua.id, { from: ub.id })).status, 200); // nothing there, but allowed on my page
+  const other = client(); await signup(other, "n3@example.com", "Third");
+  assert.equal((await other("DELETE", "/api/comments/" + ub.id, { from: ua.id })).json.error, "forbidden");
+  assert.equal((await b("DELETE", "/api/comments/" + ub.id, { from: ua.id })).json.comments.length, 0); // owner removes it
+  await a("PUT", "/api/comments/" + ub.id, { text: "Снова я" });
+  assert.equal((await a("DELETE", "/api/comments/" + ub.id, {})).json.comments.length, 0); // author removes own
+});
