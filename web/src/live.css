@@ -1,10 +1,10 @@
 /* ---- live build: stage 1 (accounts, profile, shared feed) ---- */
-[data-nav="teams"], [data-nav="admin"] { display: none !important; }
+[data-nav="admin"], [data-action="invite-link"], [data-action="sub-find"] { display: none !important; }
 #bell[hidden] { display: none !important; }
 [data-q="verified"], [data-pd="10080"] { display: none !important; }
 .field:has(> .lbl > .pro), .field:has(> #ob-nick), label.check:has(#pf2-showc) { display: none !important; }
 .demo-line:empty { display: none; }
-nav.bottom .in { grid-template-columns: repeat(4, 1fr); }
+nav.bottom .in { grid-template-columns: repeat(5, 1fr); }
 .me-btn.guest { display: flex; }
 .lv-in { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 10px; font-size: 13.5px; font-weight: 600; color: var(--fg); white-space: nowrap; }
 .me-btn.guest:hover .lv-in { border-color: var(--accent-line); }

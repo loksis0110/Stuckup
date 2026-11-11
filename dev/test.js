@@ -4,11 +4,12 @@ const test = require("node:test"), assert = require("node:assert");
 process.env.SMOKE_KEY = "k-test";
 const { handler } = require("../server/index.js");
 
+let ipN = 0;
 function client() {
-  let jar = "";
+  let jar = ""; const ip = "10.0.0." + (++ipN);
   return async function call(method, path, body, headers) {
     const qi = path.indexOf("?"), query = qi < 0 ? {} : Object.fromEntries(new URLSearchParams(path.slice(qi + 1))); if (qi >= 0) path = path.slice(0, qi);
-    const ev = { httpMethod: method, path, queryStringParameters: query, headers: Object.assign({ Host: "localhost", Cookie: jar }, body !== undefined ? { "Content-Type": "application/json" } : {}, headers || {}), requestContext: { identity: { sourceIp: "1.2.3.4" } } };
+    const ev = { httpMethod: method, path, queryStringParameters: query, headers: Object.assign({ Host: "localhost", Cookie: jar }, body !== undefined ? { "Content-Type": "application/json" } : {}, headers || {}), requestContext: { identity: { sourceIp: ip } } };
     if (body !== undefined) ev.body = JSON.stringify(body);
     const r = await handler(ev, {});
     const sc = r.multiValueHeaders && r.multiValueHeaders["Set-Cookie"];
@@ -192,4 +193,58 @@ test("notifications, stack, comments", async () => {
   assert.equal((await b("DELETE", "/api/comments/" + ub.id, { from: ua.id })).json.comments.length, 0); // owner removes it
   await a("PUT", "/api/comments/" + ub.id, { text: "Снова я" });
   assert.equal((await a("DELETE", "/api/comments/" + ub.id, {})).json.comments.length, 0); // author removes own
+});
+
+test("teams and scrims", async () => {
+  const a = client(), b = client(), c = client();
+  const ua = await signup(a, "t1@example.com", "CapA"), ub = await signup(b, "t2@example.com", "CapB"), uc = await signup(c, "t3@example.com", "Rookie");
+  assert.equal((await a("POST", "/api/teams", { name: "Night Raid", tag: "n!", game: "cs2" })).json.error, "team_err_tag");
+  const ta = (await a("POST", "/api/teams", { name: "Night Raid", tag: "nrd", game: "cs2", open: ["awp"], style: "serious", desc: "Играем по вечерам" })).json.team;
+  assert.equal(ta.tag, "NRD"); assert.equal(ta.members[0].trole, "captain");
+  assert.equal((await a("POST", "/api/teams", { name: "Second", tag: "SEC", game: "cs2" })).json.error, "team_have");
+  assert.equal((await b("POST", "/api/teams", { name: "Volga Five", tag: "NRD", game: "cs2" })).json.error, "tag_taken");
+  const tb = (await b("POST", "/api/teams", { name: "Volga Five", tag: "VLG", game: "cs2" })).json.team;
+  // application
+  assert.equal((await c("POST", "/api/teams/" + ta.id + "/apply", { role: "awp", msg: "Возьмите" })).status, 200);
+  let lst = (await a("GET", "/api/teams")).json; assert.equal(lst.teams.find(t => t.id === ta.id).apps.length, 1);
+  assert.equal((await b("GET", "/api/teams")).json.teams.find(t => t.id === ta.id).apps.length, 0); // other teams do not see applications
+  assert.deepEqual((await c("GET", "/api/teams")).json.apps, [ta.id]);
+  assert.equal((await b("POST", "/api/teams/" + ta.id + "/apps", { uid: uc.id, accept: true })).json.error, "no_rights");
+  assert.equal((await a("POST", "/api/teams/" + ta.id + "/apps", { uid: uc.id, accept: true })).status, 200);
+  lst = (await c("GET", "/api/teams")).json; const tA = lst.teams.find(t => t.id === ta.id);
+  assert.equal(tA.members.length, 2); assert.deepEqual(tA.open, []); assert.equal((await c("GET", "/api/notifs")).json.notifs[0].k, "app_ok");
+  assert.equal((await a("POST", "/api/teams/" + ta.id + "/role", { uid: uc.id, trole: "coach" })).status, 200);
+  assert.equal((await c("POST", "/api/teams/" + ta.id + "/role", { uid: ua.id, trole: "sub" })).json.error, "no_rights");
+  // scrim slot → booking → veto → result → rating
+  const at = Date.now() + 300000;
+  assert.equal((await c("POST", "/api/scrims", { team: ta.id, at, format: "bo1" })).json.error, "no_rights");
+  const sl = (await a("POST", "/api/scrims", { team: ta.id, at, format: "bo1", note: "Тренируем Mirage" })).json.scrim;
+  assert.equal((await client()("GET", "/api/teams")).json.scrims.length, 1);
+  assert.equal((await a("POST", "/api/scrims/" + sl.id + "/book", { team: ta.id })).json.error, "bad_target");
+  assert.equal((await b("POST", "/api/scrims/" + sl.id + "/book", { team: tb.id })).json.scrim.status, "requested");
+  assert.equal((await a("GET", "/api/notifs")).json.notifs[0].k, "book");
+  assert.equal((await a("POST", "/api/scrims/" + sl.id + "/answer", { accept: true })).json.scrim.status, "confirmed");
+  assert.equal((await b("POST", "/api/scrims/" + sl.id + "/veto", { map: "Mirage" })).json.error, "veto_turn");
+  const order = ["Mirage", "Inferno", "Nuke", "Ancient", "Anubis", "Dust II"]; let last;
+  for (let i = 0; i < 6; i++) { last = await (i % 2 ? b : a)("POST", "/api/scrims/" + sl.id + "/veto", { map: order[i] }); assert.equal(last.status, 200, JSON.stringify(last.json)); }
+  assert.deepEqual(last.json.scrim.maps, ["Overpass"]);
+  assert.equal((await c("POST", "/api/scrims/" + sl.id + "/veto", { map: "Overpass" })).json.error, "veto_closed");
+  const rp = await c("POST", "/api/scrims/" + sl.id + "/report", { beh: "ok", games: [{ map: "Overpass", a: 13, b: 9 }] }); // the coach may report
+  assert.equal(rp.json.scrim.status, "reported");
+  assert.equal((await a("POST", "/api/scrims/" + sl.id + "/confirm", { ok: true })).json.error, "report_own");
+  const cf = await b("POST", "/api/scrims/" + sl.id + "/confirm", { ok: true, beh: "late" });
+  assert.equal(cf.json.scrim.status, "played"); assert.equal(cf.json.scrim.res.delta, 16);
+  lst = (await a("GET", "/api/teams")).json;
+  const A2 = lst.teams.find(t => t.id === ta.id).st, B2 = lst.teams.find(t => t.id === tb.id).st;
+  assert.equal(A2.rating, 1016); assert.equal(B2.rating, 984); assert.equal(A2.w, 1); assert.equal(B2.l, 1); assert.equal(A2.late, 1); assert.equal(B2.ok, 1);
+  // leaving, kicking, disbanding
+  assert.equal((await a("POST", "/api/teams/" + ta.id + "/leave", {})).json.error, "captain_leave");
+  assert.equal((await c("POST", "/api/teams/" + ta.id + "/leave", {})).status, 200);
+  assert.equal((await c("POST", "/api/teams", { name: "Own Team", tag: "OWN", game: "cs2" })).status, 200);
+  const sl2 = (await a("POST", "/api/scrims", { team: ta.id, at, format: "bo3" })).json.scrim;
+  await b("POST", "/api/scrims/" + sl2.id + "/book", { team: tb.id });
+  assert.equal((await b("DELETE", "/api/teams/" + tb.id, {})).status, 200);
+  lst = (await a("GET", "/api/teams")).json;
+  assert.equal(lst.teams.some(t => t.id === tb.id), false); assert.equal(lst.scrims.find(s => s.id === sl2.id).status, "open");
+  assert.equal((await b("POST", "/api/teams", { name: "Volga Reborn", tag: "VLG", game: "cs2" })).status, 200); // tag is free again
 });

@@ -12,7 +12,7 @@ class Http extends Error { constructor(status, code, extra) { super(code); this.
 
 module.exports = function makeApi(db, opts) {
   opts = opts || {};
-  let feed = null;
+  let feed = null, feedGen = 0; feedGen++;
 
   /* ---------- helpers ---------- */
   async function limit(key, max, windowMs) {
@@ -39,6 +39,7 @@ module.exports = function makeApi(db, opts) {
   async function loadFeed() {
     const now = Date.now();
     if (feed && now - feed.t < FEED_TTL) return feed.posts;
+    const g0 = feedGen;
     const rows = await db.list("p"), live = [], dead = [], on = {};
     for (const row of rows) (row.d.exp > now ? live : dead).push(row.d);
     for (const p of dead.slice(0, 20)) {
@@ -48,7 +49,7 @@ module.exports = function makeApi(db, opts) {
     }
     for (const row of await db.list("on")) { if (now - row.d.t < ONLINE_MS) on[row.sk] = true; else if (now - row.d.t > 86400000) await db.del("on", row.sk); }
     for (const p of live) p.on = !!on[p.uid];
-    feed = { t: now, posts: live, on };
+    if (g0 === feedGen) feed = { t: now, posts: live, on };
     return live;
   }
   function toArchive(u, p, reason) {
@@ -163,7 +164,7 @@ module.exports = function makeApi(db, opts) {
   }
   async function putMe(req) {
     const u = await need(req), b = req.json, mine = await myPosts(u);
-    let touchPosts = false;
+    let touchPosts = false, renamed = false;
     if (b.nick != null && String(b.nick).trim() !== u.nick) {
       const nick = V.nick(b.nick), key = V.nickKey(nick), oldKey = V.nickKey(u.nick);
       if (key !== oldKey) {
@@ -171,7 +172,7 @@ module.exports = function makeApi(db, opts) {
         if (await db.get("n", key)) throw new Http(409, "nick_taken", { field: "nick" });
         await db.put("n", key, { uid: u.id }); await db.del("n", oldKey);
       }
-      u.nick = nick; touchPosts = true;
+      u.nick = nick; touchPosts = true; renamed = true;
     }
     if (b.profile != null) {
       const p = V.profile(b.profile, u.profile);
@@ -181,13 +182,14 @@ module.exports = function makeApi(db, opts) {
     }
     if (b.lang === "ru" || b.lang === "en") u.lang = b.lang;
     await db.put("u", u.id, u);
+    if (renamed) await teams.userRenamed(u);
     if (touchPosts && mine.length) {
       for (const p of mine) {
         p.nick = u.nick; p.c = { dc: u.profile.dc, tg: u.profile.tg }; p.langs = u.profile.langs; p.when = u.profile.time;
         if (!u.profile.adult) p.stags = (p.stags || []).filter(s => s !== "adult");
         await db.put("p", p.id, p);
       }
-      feed = null;
+      feed = null; feedGen++;
     }
     return { body: { user: me(u), posts: mine } };
   }
@@ -201,9 +203,10 @@ module.exports = function makeApi(db, opts) {
       await db.del("cv:" + cv.sk, u.id); await db.del("cv:" + u.id, cv.sk);
     }
     for (const part of ["cm:" + u.id, "nt:" + u.id]) for (const r of await db.list(part)) await db.del(part, r.sk);
+    await teams.userGone(u);
     await db.del("nc", u.id); await db.del("on", u.id);
     await db.del("e", u.email); await db.del("n", V.nickKey(u.nick)); await db.del("u", u.id);
-    feed = null;
+    feed = null; feedGen++;
     return { body: { ok: true }, cookies: [A.clearCookie()] };
   }
   async function setList(req, field) {
@@ -243,7 +246,7 @@ module.exports = function makeApi(db, opts) {
     u.posts[f.game] = post.id;
     await db.put("p", post.id, post);
     await db.put("u", u.id, u);
-    feed = null;
+    feed = null; feedGen++;
     return { body: { post: view(post, u), user: me(u), replaced } };
   }
   async function ownPost(req, id) {
@@ -258,7 +261,7 @@ module.exports = function makeApi(db, opts) {
       toArchive(u, p, "closed");
       if (u.posts && u.posts[p.game] === p.id) delete u.posts[p.game];
       await db.put("u", u.id, u);
-      feed = null;
+      feed = null; feedGen++;
     }
     return { body: { ok: true, archive: u.archive || [] } };
   }
@@ -268,7 +271,7 @@ module.exports = function makeApi(db, opts) {
     await limit("renew:" + u.id, 60, 3600000);
     p.t0 = now; p.exp = now + p.dur * 60000;
     await db.put("p", p.id, p);
-    feed = null;
+    feed = null; feedGen++;
     return { body: { post: view(p, u) } };
   }
   async function report(req) {
@@ -385,6 +388,8 @@ module.exports = function makeApi(db, opts) {
     return listComments(req, uid);
   }
 
+  const teams = require("./teams")({ db, Http, need, currentUser, limit, notify });
+
   function originOk(origin, h) {
     const o = String(origin).replace(/^https?:\/\//, "").toLowerCase();
     if (o === String(h.host || "").toLowerCase() || o === String(h["x-forwarded-host"] || "").toLowerCase()) return true;
@@ -428,7 +433,7 @@ module.exports = function makeApi(db, opts) {
     ["GET", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, listComments],
     ["PUT", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, putComment],
     ["DELETE", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, delComment]
-  ];
+  ].concat(teams.routes);
 
   return async function handle(req) {
     try {

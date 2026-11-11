@@ -150,6 +150,7 @@ function adoptUser(u) {
   setLists(u);
   S.archive = (u.archive || []).slice();
   LV.synced = JSON.stringify(profilePayload());
+  if (LV.teamsSig) { LV.teamsDrawn = ""; refreshTeams().then(teamsDraw); }
 }
 function setLists(o) {
   LV.favList = o.favs || []; LV.blockList = o.blocked || [];
@@ -159,6 +160,7 @@ function setLists(o) {
 function signedOut(expired) {
   ME = null; S.profile = blankProfile(S.lang); setLists({}); LV.synced = ""; S.chats = {}; S.active = null; S.archive = [];
   S.posts.forEach(p => { p.mine = false; SEED.push(p); }); S.posts = [];
+  if (LV.teamsSig) refreshTeams();
   if ($("#overlay")) closeModal();
   setView("feed"); renderAll();
   refreshFeed(true).then(() => { renderRail(); renderFeed(); });
@@ -213,6 +215,7 @@ function applyLang() {
 function renderRail() {
   const act = activePosts();
   const tile = (k, name, color, mob) => {
+    if (S.view === "teams") { const all = allTeams(), c = k === "all" ? all.length : all.filter(x => x.game === k).length; return `<button class="gt${c ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})"><span class="gt-name">${esc(name)}${mob ? `<small>${esc(t("mobile"))}</small>` : ""}</span><span class="gt-meta">${esc(t("teams_n", c))}</span></button>`; }
     const n = k === "all" ? act.length : act.filter(p => p.game === k).length;
     return `<button class="gt${n ? "" : " none"}" data-game="${k}" aria-pressed="${S.game === k}" style="--g:var(${color})"><span class="gt-name">${esc(name)}${mob ? `<small>${esc(t("mobile"))}</small>` : ""}</span><span class="gt-meta">${n ? '<i class="odot" aria-hidden="true"></i>' : ""}${esc(t("lv_looking", n))}</span></button>`;
   };
@@ -314,9 +317,10 @@ async function notifSheet() {
 }
 function verRow() { return ""; }
 function setView(v) {
-  if (v !== "feed" && v !== "profile" && v !== "chats") v = "feed";
+  if (v !== "feed" && v !== "profile" && v !== "chats" && v !== "teams") v = "feed";
   if ((v === "profile" || v === "chats") && !ME) { authSheet("login"); return; }
   setView__base(v);
+  if (v === "teams") refreshTeams().then(teamsDraw);
 }
 function closeModal() { AU = null; closeModal__base(); }
 
@@ -363,8 +367,9 @@ async function loadComments(uid, pre) {
   });
 }
 function shareSheet(kind, id) {
-  const p = findPost(id); if (!p) return;
-  const link = location.origin + "/#/p/" + p.id;
+  let link;
+  if (kind === "team") { const tm = findTeam(id); if (!tm) return; link = location.origin + "/#/t/" + tm.id; }
+  else { const p = findPost(id); if (!p) return; link = location.origin + "/#/p/" + p.id; }
   openSheet(t("share"), `<div class="field"><span class="lbl">${esc(t("share_title"))}</span>${linkBox(link)}</div><p class="hint" style="margin:0">${esc(t("share_note"))}</p>`, "");
 }
 function whoIs(id) { const p = findPost(id); if (p) return { uid: p.uid, nick: p.nick }; const x = LV.favList.concat(LV.blockList).find(v => v.id === id) || S.chats[id]; return { uid: id, nick: x ? x.nick : "" }; }
@@ -695,7 +700,7 @@ async function pollChats() {
   LV.chatAt = now; if (beat) LV.beatAt = now;
   const r = await api("GET", "/chats" + (beat ? "?beat=1" : ""));
   if (!r.ok) { if (r.status === 401) signedOut(true); return; }
-  if ((r.notifs || 0) !== (LV.nUnread || 0)) { LV.nUnread = r.notifs || 0; renderBell(); }
+  if ((r.notifs || 0) !== (LV.nUnread || 0)) { const up = (r.notifs || 0) > (LV.nUnread || 0); LV.nUnread = r.notifs || 0; renderBell(); if (up && S.view === "teams") refreshTeams().then(teamsDraw); }
   const before = chatSig();
   r.chats.forEach(x => {
     const c = S.chats[x.id] || (S.chats[x.id] = { id: x.id, nick: x.nick, msgs: [], unread: 0, t: 0, last: "", loaded: false });
@@ -707,6 +712,7 @@ async function pollChats() {
   if (before !== chatSig()) { if (!S.active && (isWide() || S.view === "chats")) renderChat(); else renderUnread(); }
 }
 function chatTick() {
+  teamsDraw();
   if (!ME || document.hidden) return;
   const open = isWide() || S.view === "chats", every = S.active && open ? 5000 : open ? 12000 : 25000;
   if (Date.now() - (LV.chatAt || 0) >= every) pollChats();
@@ -716,6 +722,7 @@ function chatTick() {
 function tick() {
   if (document.hidden || !LV.ready) return;
   if (Date.now() - LV.feedAt > 30000 && !LV.busy) { softRefresh(); return; }
+  if (S.view === "teams" && !$("#overlay") && Date.now() - (LV.teamsAt || 0) > 15000 && !(document.activeElement && document.activeElement.closest && document.activeElement.closest("#page select"))) refreshTeams().then(teamsDraw);
   const n = activePosts().length;
   if (n !== lastActive) { lastActive = n; renderRail(); if (!$("#overlay")) renderFeed(); if (S.view === "profile" && !$("#overlay") && !document.activeElement.closest("#page")) renderProfile(); }
   else updateTimers();
@@ -729,13 +736,16 @@ async function softRefresh() {
 }
 function addLive() {}
 function openDeepLink() {
-  const m = /^#\/p\/([A-Za-z0-9_-]{6,40})$/.exec(location.hash || ""); if (!m) return;
+  const m = /^#\/([pt])\/([A-Za-z0-9_-]{6,40})$/.exec(location.hash || ""); if (!m) return;
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
-  playerSheet(m[1]);
+  if (m[1] === "p") playerSheet(m[2]);
+  else refreshTeams().then(() => { S.teamTab = "browse"; setView("teams"); teamSheet(m[2]); });
 }
 
 //@@boot
+const teamsSoon = () => refreshTeams().then(teamsDraw);
 document.addEventListener("click", e => {
+  if (e.target.closest("[data-ttab]")) teamsSoon();
   const a = e.target.closest("[data-action]"); if (!a) return;
   const id = a.dataset.id;
   const H = {
@@ -747,7 +757,9 @@ document.addEventListener("click", e => {
   };
   const fn = H[a.dataset.action];
   if (fn) { e.preventDefault(); e.stopPropagation(); fn(); }
+  else if (teamClick(a)) { e.preventDefault(); e.stopPropagation(); }
 }, true);
+document.addEventListener("change", e => { const el = e.target; if (el.dataset && el.dataset.trole != null && el.dataset.team) { e.stopPropagation(); teamRoleChange(el); } }, true);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && LV.ready && Date.now() - LV.feedAt > 30000) softRefresh(); if (!document.hidden) chatTick(); });
 window.addEventListener("hashchange", () => { if (LV.ready) openDeepLink(); });
 async function start() {
