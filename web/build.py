@@ -22,7 +22,7 @@ for line in live.split("\n"):
     if m: cur = m.group(1); parts[cur] = []; continue
     if cur: parts[cur].append(line)
 head, main, boot = ("\n".join(parts[k]).strip() + "\n" for k in ("head", "main", "boot"))
-main += "\n" + (SRC / "live_teams.js").read_text()
+main += "\n" + (SRC / "live_teams.js").read_text() + "\n" + (SRC / "live_social.js").read_text()
 
 def cut(s, a, b, new):
     i, j = s.index(a), s.index(b)
@@ -116,6 +116,8 @@ for name in ("rules", "privacy"):
     desc = re.search(r"<!--DESC: (.*?)-->", src).group(1)
     bodyp = re.sub(r"<!--(TITLE|DESC): .*?-->\n", "", src)
     (OUT / (name + ".html")).write_text(layout.replace("{{TITLE}}", title).replace("{{DESC}}", desc).replace("{{SITE}}", SITE).replace("{{PATH}}", "/" + name).replace("{{BODY}}", bodyp))
+
+shutil.copy(W / "pages" / "admin.html", OUT / "admin.html")
 
 # ---------- assets ----------
 shutil.copytree(W / "assets" / "fonts", OUT / "fonts")

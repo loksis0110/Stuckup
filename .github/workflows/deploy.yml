@@ -28,6 +28,10 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          VK_CLIENT_ID: ${{ secrets.VK_CLIENT_ID }}
+          VK_CLIENT_SECRET: ${{ secrets.VK_CLIENT_SECRET }}
+          FACEIT_API_KEY: ${{ secrets.FACEIT_API_KEY }}
         run: |
           set +e
           env -u SMTP_HOST -u SMTP_USER -u SMTP_PASS node --test dev/test.js > "$RUNNER_TEMP/deploy.log" 2>&1
@@ -41,6 +45,9 @@ jobs:
           YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          VK_CLIENT_SECRET: ${{ secrets.VK_CLIENT_SECRET }}
+          FACEIT_API_KEY: ${{ secrets.FACEIT_API_KEY }}
           CODE: ${{ steps.deploy.outputs.code }}
         run: |
           python3 tools/publish_log.py "$RUNNER_TEMP/deploy.log" "$RUNNER_TEMP/out"

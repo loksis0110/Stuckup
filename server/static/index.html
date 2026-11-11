@@ -792,6 +792,15 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .lv-cm p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--fg-2); overflow-wrap: anywhere; }
 .lv-cmform { display: grid; gap: 8px; margin-top: 10px; justify-items: start; }
 .lv-cmform textarea { width: 100%; min-height: 64px; }
+.lv-soc { display: grid; gap: 10px; }
+.lv-soc > span { font-size: 12.5px; color: var(--muted); text-align: center; }
+.lv-soc > div { display: flex; gap: 8px; }
+.lv-soc .btn { flex: 1; justify-content: center; text-decoration: none; }
+.lv-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--fg-2); font-size: 14.5px; line-height: 1.5; }
+#tgOpen { text-decoration: none; margin: 4px 0; display: flex; }
+.lv-fc { display: flex; gap: 6px; flex: 1 1 220px; }
+.lv-fc .inp { min-width: 0; }
+#ps-link .acc a.btn { text-decoration: none; }
 
 @media (max-width: 639px) {
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3102,8 +3111,9 @@ async function pushProfile() {
   return r;
 }
 function adoptUser(u) {
-  ME = { id: u.id, email: u.email, nick: u.nick };
+  ME = { id: u.id, email: u.email, nick: u.nick, hasPass: u.hasPass !== false, tg: u.tg || null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit || null, ver: u.ver || {} };
   S.profile = Object.assign(blankProfile(S.lang), u.profile, { nick: u.nick });
+  Object.keys(ME.ver).forEach(sys => { S.profile.ver[sys] = "api"; });
   GAME_KEYS.forEach(g => { if (!S.profile.ranks[g]) S.profile.ranks[g] = {}; });
   setLists(u);
   S.archive = (u.archive || []).slice();
@@ -3129,7 +3139,7 @@ function signedOut(expired) {
 function adoptPost(p) {
   const o = Object.assign({}, p);
   o.t0 = p.t0 - LV.skew; o.exp = p.exp - LV.skew; o.t = o.t0;
-  o.mine = !!ME && p.uid === ME.id; o.on = !!p.on; o.ver = false; o.cvis = "all";
+  o.mine = !!ME && p.uid === ME.id; o.on = !!p.on; o.ver = !!p.ver; o.cvis = "all";
   return o;
 }
 function setFeed(list) {
@@ -3207,7 +3217,7 @@ function card(p) {
   const who = `<button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button>`;
   const av = `<button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, p.on && !p.mine)}</button>`;
   const tagline = p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : "";
-  const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
+  const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${p.ver ? `<span class="ver" title="${esc(t("lv_verified"))}">${ICON.shield}</span>` : ""}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
   const note = noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : "";
   const foot = p.mine
     ? `<div class="c-foot">${needHtml(p)}</div><div class="c-foot">${expHtml(p)}<div class="c-acts"><button class="btn small" data-action="renew" data-id="${id}">${ICON.refresh}${esc(t("renew", durLabel(p.dur)))}</button><button class="iconbtn" data-action="del-post" data-id="${id}" aria-label="${esc(t("del"))}" title="${esc(t("del"))}">${ICON.trash}</button></div></div>`
@@ -3437,9 +3447,9 @@ function authBody() {
   const err = AU.err ? `<p class="ferr" role="alert">${esc(AU.err)}</p>` : "";
   const dev = AU.devCode ? `<p class="lv-dev">${esc(t("lv_dev_code", AU.devCode))}</p>` : "";
   let h = "";
-  if (m === "login") h = email + pass(t("lv_pass"), "current-password") + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="register">${esc(t("lv_to_reg"))}</button><button type="button" class="lv-a" data-au="reset">${esc(t("lv_forgot"))}</button></div>`;
+  if (m === "login") h = email + pass(t("lv_pass"), "current-password") + err + socialButtons() + `<div class="lv-links2"><button type="button" class="lv-a" data-au="register">${esc(t("lv_to_reg"))}</button><button type="button" class="lv-a" data-au="reset">${esc(t("lv_forgot"))}</button></div>`;
   else if (m === "register") h = `<div class="field"><label class="lbl" for="au-nick">${esc(t("nick"))}</label><input class="inp" id="au-nick" autocomplete="nickname" autocapitalize="off" spellcheck="false" minlength="3" maxlength="20" required placeholder="${esc(t("nick_ph"))}" value="${esc(AU.nick)}"><p class="hint">${esc(t("lv_nick_hint"))}</p></div>` + email + pass(t("lv_pass"), "new-password", t("lv_pass_hint")) +
-    `<label class="check lv-consent"><input type="checkbox" id="au-consent" required${AU.consent ? " checked" : ""}> <span>${esc(c[0])}<a href="/rules" target="_blank" rel="noopener">${esc(c[1])}</a>${esc(c[2])}<a href="/privacy" target="_blank" rel="noopener">${esc(c[3])}</a>${esc(c[4])}</span></label>` + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="login">${esc(t("lv_to_login"))}</button></div>`;
+    `<label class="check lv-consent"><input type="checkbox" id="au-consent" required${AU.consent ? " checked" : ""}> <span>${esc(c[0])}<a href="/rules" target="_blank" rel="noopener">${esc(c[1])}</a>${esc(c[2])}<a href="/privacy" target="_blank" rel="noopener">${esc(c[3])}</a>${esc(c[4])}</span></label>` + err + socialButtons() + `<div class="lv-links2"><button type="button" class="lv-a" data-au="login">${esc(t("lv_to_login"))}</button></div>`;
   else if (m === "code") h = `<p class="lv-lead">${esc(t("lv_code_sent", AU.email))}</p>` + dev + code + err + `<p class="hint">${esc(t("lv_code_spam"))}</p><div class="lv-links2"><button type="button" class="lv-a" data-au="resend">${esc(t("lv_resend"))}</button><button type="button" class="lv-a" data-au="register">${esc(t("lv_back"))}</button></div>`;
   else if (m === "reset") h = `<p class="lv-lead">${esc(t("lv_reset_hint"))}</p>` + email + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="login">${esc(t("lv_back"))}</button></div>`;
   else h = `<p class="lv-lead">${esc(t("lv_code_sent", AU.email))}</p>` + dev + code + pass(t("lv_pass_new"), "new-password", t("lv_pass_hint")) + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="reset">${esc(t("lv_back"))}</button></div>`;
@@ -3453,6 +3463,7 @@ function authRender() {
       const b = e.target.closest("[data-au]"); if (!b || !AU) return;
       authRead();
       if (b.dataset.au === "resend") { authResend(); return; }
+      if (b.dataset.au === "tg") { tgFlow(false); return; }
       AU.mode = b.dataset.au; AU.err = ""; AU.code = ""; AU.devCode = ""; authRender();
     });
     const first = ov.querySelector(m === "code" || m === "reset2" ? "#au-code" : m === "register" ? "#au-nick" : "#au-email");
@@ -3534,8 +3545,9 @@ function renderProfile() {
   const favRows = LV.favList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="iconbtn fav" data-action="fav" data-id="${esc(x.id)}" aria-label="${esc(t("fav_on"))}" title="${esc(t("fav_on"))}">${ICON.star}</button></div>`).join("");
   const blkRows = LV.blockList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="btn ghost small" data-action="unblock" data-id="${esc(x.id)}">${esc(t("unblock"))}</button></div>`).join("");
   h += `<div class="panel" id="ps-people"><div class="field"><h2 class="sec">${esc(t("favs_title"))}</h2>${favRows ? `<div>${favRows}</div>` : `<p class="hint">${esc(t("favs_empty"))}</p>`}</div><div class="field"><h2 class="sec">${esc(t("blocked_title"))}</h2>${blkRows ? `<div>${blkRows}</div>` : `<p class="hint">${esc(t("blocked_empty"))}</p>`}</div></div>`;
+  h += linksPanel();
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
-  h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email)}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
+  h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
   loadComments(ME.id);
 }
@@ -3563,8 +3575,9 @@ function nickSheet() {
   });
 }
 function deleteAccSheet() {
-  miniSheet(t("lv_del_acc"), `<p class="lv-lead">${esc(t("lv_del_acc_t"))}</p><div class="field"><label class="lbl" for="ms-pass">${esc(t("lv_pass"))}</label><input class="inp" id="ms-pass" type="password" autocomplete="current-password" maxlength="72"></div>`, t("lv_del_acc"), true, async ov => {
-    const r = await api("DELETE", "/me", { password: ov.querySelector("#ms-pass").value });
+  const byNick = !ME.hasPass;
+  miniSheet(t("lv_del_acc"), `<p class="lv-lead">${esc(t(byNick ? "lv_del_acc_nick" : "lv_del_acc_t"))}</p><div class="field"><label class="lbl" for="ms-pass">${esc(t(byNick ? "nick" : "lv_pass"))}</label><input class="inp" id="ms-pass" ${byNick ? 'autocomplete="off"' : 'type="password" autocomplete="current-password"'} maxlength="72"></div>`, t("lv_del_acc"), true, async ov => {
+    const val = ov.querySelector("#ms-pass").value, r = await api("DELETE", "/me", byNick ? { confirm: val.trim() } : { password: val });
     if (!r.ok) return errText(r);
     signedOut(false); toast(t("lv_del_acc_done")); return "";
   });
@@ -3694,6 +3707,8 @@ async function softRefresh() {
 }
 function addLive() {}
 function openDeepLink() {
+  const so = /^#\/(signup|linked|err)\/([A-Za-z0-9_-]{2,40})$/.exec(location.hash || "");
+  if (so) { try { history.replaceState(null, "", location.pathname); } catch (e) {} socialRoute(so[1], so[2]); return; }
   const m = /^#\/([pt])\/([A-Za-z0-9_-]{6,40})$/.exec(location.hash || ""); if (!m) return;
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   if (m[1] === "p") playerSheet(m[2]);
@@ -3925,6 +3940,97 @@ function teamRoleChange(el) {
 }
 function miniRank(r) { return r ? miniRank__base(r) : ""; }
 
+/* ---------- sign-in through Telegram / VK, linked accounts, verified ranks ---------- */
+Object.assign(T.ru, { lv_or: "или войти через", lv_tg_t: "Вход через Telegram", lv_tg_link_t: "Уведомления в Telegram", lv_tg_1: "Откройте нашего бота и нажмите «Запустить» (Start).", lv_tg_2: "Вернитесь сюда — страница обновится сама.", lv_tg_open: "Открыть Telegram", lv_tg_waiting: "Ждём подтверждения в Telegram…",
+  lv_soc_t: "Последний шаг", lv_soc_lead: "Придумайте ник — его увидят другие игроки.", lv_links: "Привязки", lv_links_t: "Привязки и уведомления", lv_tg_row: "Telegram", lv_tg_row_d: "Сообщения, приглашения и заявки будут приходить в Telegram.", lv_tg_connect: "Подключить", lv_tg_on: "включены", lv_tg_off: "выключены",
+  lv_turn_on: "Включить", lv_turn_off: "Выключить", lv_unlink: "Отвязать", lv_refresh: "Обновить", lv_steam_d: "Подтверждает медаль Dota 2 через Steam. Вводить ранг руками не придётся.", lv_steam_link: "Привязать Steam", lv_steam_ok: "Steam привязан, медаль Dota 2 подтверждена", lv_steam_norank: "Steam привязан, но ранг скрыт: включите в Dota 2 «Общедоступную историю матчей» и нажмите «Обновить».",
+  lv_fc_d: "Показывает ваше настоящее ELO на FACEIT и обновляет его.", lv_fc_ph: "Ник на FACEIT", lv_fc_link: "Привязать", lv_fc_ok: n => "FACEIT · " + n, lv_fc_soon: "Привязка FACEIT скоро появится.", lv_linked: "Готово, привязано", lv_updated: "Данные обновлены",
+  lv_via: { tg: "вход через Telegram", vk: "вход через VK" }, lv_del_acc_nick: "Аккаунт, профиль и объявления будут удалены без возможности восстановления. Для подтверждения введите свой ник.", lv_verified: "ранг подтверждён" });
+Object.assign(T.en, { lv_or: "or sign in with", lv_tg_t: "Sign in with Telegram", lv_tg_link_t: "Telegram notifications", lv_tg_1: "Open our bot and press Start.", lv_tg_2: "Come back here — the page updates by itself.", lv_tg_open: "Open Telegram", lv_tg_waiting: "Waiting for confirmation in Telegram…",
+  lv_soc_t: "One last step", lv_soc_lead: "Pick a nickname — other players will see it.", lv_links: "Links", lv_links_t: "Linked accounts and notifications", lv_tg_row: "Telegram", lv_tg_row_d: "Messages, invites and applications will arrive in Telegram.", lv_tg_connect: "Connect", lv_tg_on: "on", lv_tg_off: "off",
+  lv_turn_on: "Turn on", lv_turn_off: "Turn off", lv_unlink: "Unlink", lv_refresh: "Refresh", lv_steam_d: "Verifies your Dota 2 medal through Steam. No manual rank entry.", lv_steam_link: "Link Steam", lv_steam_ok: "Steam linked, Dota 2 medal verified", lv_steam_norank: "Steam is linked, but the rank is hidden: enable “Expose Public Match Data” in Dota 2 and press Refresh.",
+  lv_fc_d: "Shows your real FACEIT ELO and keeps it up to date.", lv_fc_ph: "FACEIT nickname", lv_fc_link: "Link", lv_fc_ok: n => "FACEIT · " + n, lv_fc_soon: "FACEIT linking is coming soon.", lv_linked: "Done, linked", lv_updated: "Data updated",
+  lv_via: { tg: "signed in with Telegram", vk: "signed in with VK" }, lv_del_acc_nick: "Your account, profile and listings will be deleted for good. Type your nickname to confirm.", lv_verified: "rank verified" });
+Object.assign(T.ru.lv_err, { tg_off: "Вход через Telegram сейчас недоступен.", tg_taken: "Этот Telegram уже привязан к другому аккаунту.", vk_off: "Вход через VK пока не подключён.", vk_fail: "Не получилось войти через VK. Попробуйте ещё раз.", link_fail: "Не получилось привязать аккаунт. Попробуйте ещё раз.",
+  link_taken: "Этот аккаунт уже привязан к другому игроку Stuckup.", link_off: "Эта привязка пока не подключена.", faceit_none: "Игрок с таким ником на FACEIT не найден.", faceit_nocs2: "У этого аккаунта FACEIT нет CS2.", last_login: "Это ваш единственный способ входа — отвязать нельзя." });
+Object.assign(T.en.lv_err, { tg_off: "Telegram sign-in is not available right now.", tg_taken: "This Telegram is already linked to another account.", vk_off: "VK sign-in is not connected yet.", vk_fail: "Could not sign in with VK. Please try again.", link_fail: "Could not link the account. Please try again.",
+  link_taken: "This account is already linked to another Stuckup player.", link_off: "This link is not available yet.", faceit_none: "No FACEIT player with this nickname.", faceit_nocs2: "This FACEIT account has no CS2.", last_login: "This is your only way to sign in — it cannot be unlinked." });
+
+function socialButtons() {
+  const c = LV.cfg || {}; if (!c.tg && !c.vk) return "";
+  return `<div class="lv-soc"><span>${esc(t("lv_or"))}</span><div>${c.tg ? `<button type="button" class="btn" data-au="tg">${ICON.send}Telegram</button>` : ""}${c.vk ? `<a class="btn" href="/api/auth/vk/start">VK ID</a>` : ""}</div></div>`;
+}
+async function tgFlow(link) {
+  const r = await api("POST", link ? "/me/tg/link" : "/auth/tg/start", {});
+  if (!r.ok) { toast(errText(r)); return; }
+  const after = AU && AU.after;
+  openSheet(t(link ? "lv_tg_link_t" : "lv_tg_t"), `<ol class="lv-steps"><li>${esc(t("lv_tg_1"))}</li><li>${esc(t("lv_tg_2"))}</li></ol><a class="btn primary lv-wide" id="tgOpen" href="${esc(r.url)}" target="_blank" rel="noopener">${ICON.send}${esc(t("lv_tg_open"))}</a><p class="hint" id="tgWait">${esc(t("lv_tg_waiting"))}</p>`, "");
+  const token = r.token, t0 = Date.now();
+  const timer = setInterval(async () => {
+    if (!$("#tgWait") || Date.now() - t0 > 600000) { clearInterval(timer); return; }
+    if (document.hidden) return;
+    const x = await api("POST", "/auth/tg/poll", { token });
+    if (x.ok && x.wait) return;
+    clearInterval(timer);
+    if (!$("#tgWait")) return;
+    if (!x.ok) { closeModal(); toast(errText(x)); return; }
+    if (x.linked) { if (x.user) adoptUser(x.user); closeModal(); if (S.view === "profile") renderProfile(); toast(t("lv_linked")); return; }
+    if (x.signup) { socialSheet(x.signup, x.suggest, after); return; }
+    AU = { after }; await signedIn(x);
+  }, 2000);
+}
+function socialSheet(token, suggest, after) {
+  const c = t("lv_consent");
+  miniSheet(t("lv_soc_t"), `<p class="lv-lead">${esc(t("lv_soc_lead"))}</p><div class="field"><label class="lbl" for="ms-nick">${esc(t("nick"))}</label><input class="inp" id="ms-nick" autocapitalize="off" spellcheck="false" maxlength="20" value="${esc(suggest && suggest.length >= 3 ? suggest : "")}"><p class="hint">${esc(t("lv_nick_hint"))}</p></div>
+<label class="check lv-consent"><input type="checkbox" id="ms-consent"> <span>${esc(c[0])}<a href="/rules" target="_blank" rel="noopener">${esc(c[1])}</a>${esc(c[2])}<a href="/privacy" target="_blank" rel="noopener">${esc(c[3])}</a>${esc(c[4])}</span></label>`, t("lv_b_reg"), false, async ov => {
+    const nick = ov.querySelector("#ms-nick").value.trim(), E = t("lv_err");
+    if (!/^[A-Za-zА-Яа-яЁё0-9_.-]{3,20}$/.test(nick)) return E.bad_nick;
+    if (!ov.querySelector("#ms-consent").checked) return E.need_consent;
+    const r = await api("POST", "/auth/social/finish", { token, nick, consent: true, lang: S.lang });
+    if (!r.ok) return errText(r);
+    AU = { after }; await signedIn(r); return "";
+  });
+}
+function linksPanel() {
+  const c = LV.cfg || {}, v = ME.ver || {};
+  const row = (logo, title, desc, acts, on) => `<div class="acc${on ? " on" : ""}"><span class="logo">${logo}</span><span class="txt"><b>${esc(title)}</b><span>${esc(desc)}</span></span>${acts}</div>`;
+  let h = "";
+  if (c.tg) h += ME.tg
+    ? row("TG", t("lv_tg_row") + " · " + ME.tg.name, t("lv_tg_row_d") + " " + (S.lang === "ru" ? "Сейчас " : "Now ") + t(ME.tg.on ? "lv_tg_on" : "lv_tg_off") + ".", `<button class="btn small" data-lk="tg-toggle">${esc(t(ME.tg.on ? "lv_turn_off" : "lv_turn_on"))}</button>${ME.email || ME.vk ? `<button class="btn ghost small" data-lk="tg-unlink">${esc(t("lv_unlink"))}</button>` : ""}`, ME.tg.on)
+    : row("TG", t("lv_tg_row"), t("lv_tg_row_d"), `<button class="btn small primary" data-lk="tg-link">${ICON.send}${esc(t("lv_tg_connect"))}</button>`);
+  h += ME.steam
+    ? row("ST", "Steam · Dota 2", v.medal ? t("lv_steam_ok") : t("lv_steam_norank"), `<button class="btn small" data-lk="refresh">${ICON.refresh}${esc(t("lv_refresh"))}</button><button class="btn ghost small" data-lk="steam-unlink">${esc(t("lv_unlink"))}</button>`, !!v.medal)
+    : row("ST", "Steam · Dota 2", t("lv_steam_d"), `<a class="btn small" href="/api/link/steam/start">${ICON.link}${esc(t("lv_steam_link"))}</a>`);
+  if (!c.faceit && !ME.faceit) h += row("FC", "FACEIT · CS2", t("lv_fc_soon"), "");
+  else h += ME.faceit
+    ? row("FC", t("lv_fc_ok", ME.faceit), t("lv_fc_d"), `<button class="btn small" data-lk="refresh">${ICON.refresh}${esc(t("lv_refresh"))}</button><button class="btn ghost small" data-lk="faceit-unlink">${esc(t("lv_unlink"))}</button>`, true)
+    : row("FC", "FACEIT · CS2", t("lv_fc_d"), `<form class="lv-fc" id="fcForm"><input class="inp" id="fcNick" maxlength="40" autocapitalize="off" spellcheck="false" placeholder="${esc(t("lv_fc_ph"))}"><button class="btn small" type="submit">${esc(t("lv_fc_link"))}</button></form>`);
+  return `<div class="panel" id="ps-link"><h2 class="sec">${esc(t("lv_links_t"))}</h2><div class="accs">${h}</div></div>`;
+}
+async function linkAct(k) {
+  let r;
+  if (k === "tg-link") { tgFlow(true); return; }
+  if (k === "tg-toggle") r = await api("POST", "/me/tg", { on: !ME.tg.on });
+  else if (k === "tg-unlink") r = await api("POST", "/me/tg", { unlink: true });
+  else if (k === "refresh") r = await api("POST", "/link/refresh", {});
+  else if (k === "steam-unlink" || k === "faceit-unlink") r = await api("DELETE", "/link/" + k.split("-")[0], {});
+  if (!r) return;
+  if (!r.ok) { toast(errText(r)); return; }
+  adoptUser(r.user); renderProfile(); if (k === "refresh") toast(t("lv_updated"));
+}
+async function faceitLink(nick) {
+  if (!nick) return;
+  const r = await api("POST", "/link/faceit", { nick });
+  if (!r.ok) { toast(errText(r)); return; }
+  adoptUser(r.user); renderProfile(); toast(t("lv_linked"));
+}
+async function socialRoute(kind, arg) {
+  if (kind === "signup") { socialSheet(arg, ""); return; }
+  if (kind === "err") { toast(errText({ error: arg })); return; }
+  const me = await api("GET", "/me");
+  if (me.ok && me.user) { adoptUser(me.user); setView("profile"); renderAll(); const el = $("#ps-link"); if (el) el.scrollIntoView({ block: "start" }); toast(t(arg === "steam_norank" ? "lv_steam_norank" : "lv_linked")); }
+}
+
 /* ================= boot ================= */
 const teamsSoon = () => refreshTeams().then(teamsDraw);
 document.addEventListener("click", e => {
@@ -3942,11 +4048,14 @@ document.addEventListener("click", e => {
   if (fn) { e.preventDefault(); e.stopPropagation(); fn(); }
   else if (teamClick(a)) { e.preventDefault(); e.stopPropagation(); }
 }, true);
+document.addEventListener("click", e => { const b = e.target.closest("[data-lk]"); if (b) linkAct(b.dataset.lk); });
+document.addEventListener("submit", e => { if (e.target.id === "fcForm") { e.preventDefault(); faceitLink($("#fcNick").value.trim()); } });
 document.addEventListener("change", e => { const el = e.target; if (el.dataset && el.dataset.trole != null && el.dataset.team) { e.stopPropagation(); teamRoleChange(el); } }, true);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && LV.ready && Date.now() - LV.feedAt > 30000) softRefresh(); if (!document.hidden) chatTick(); });
 window.addEventListener("hashchange", () => { if (LV.ready) openDeepLink(); });
 async function start() {
-  const [me, okFeed] = await Promise.all([api("GET", "/me"), refreshFeed(true)]);
+  const [me, okFeed, cfg] = await Promise.all([api("GET", "/me"), refreshFeed(true), api("GET", "/config")]);
+  if (cfg.ok) LV.cfg = cfg;
   if (me.ok && me.user) {
     adoptUser(me.user);
     // the feed was requested in parallel: mark my own listings now that we know who I am

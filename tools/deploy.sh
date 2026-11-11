@@ -55,8 +55,15 @@ FN_ID=$(yc serverless function get "$NAME" --format json | jq -r .id)
 say "function: $FN_ID, package: $(du -k "$WORK/build.zip" | cut -f1) KB"
 SESSION_SECRET=$(printf 'session|%s' "$YC_SA_KEY" | sha256sum | cut -d' ' -f1)
 SMOKE_KEY=$(printf 'smoke|%s' "$YC_SA_KEY" | sha256sum | cut -d' ' -f1)
+SITE_URL="https://stuckup.ru"
+GW_JSON=$(yc serverless api-gateway get "$NAME" --format json 2>/dev/null || echo '{}')
+if ! echo "$GW_JSON" | jq -e '.attached_domains[]? | select(.domain=="stuckup.ru")' >/dev/null 2>&1; then
+  GW_DOMAIN=$(echo "$GW_JSON" | jq -r '.domain // empty'); [ -n "$GW_DOMAIN" ] && SITE_URL="https://$GW_DOMAIN"
+fi
+say "site url for links: $SITE_URL"
+TG_HOOK_SECRET=$(printf 'tghook|%s' "$YC_SA_KEY" | sha256sum | cut -d' ' -f1)
 BUILD="${GITHUB_SHA:-local}"; BUILD="${BUILD:0:7}"
-ENVS=(--environment "DOCAPI_ENDPOINT=$DOCAPI" --environment "TABLE_NAME=$NAME" --environment "SESSION_SECRET=$SESSION_SECRET" --environment "SMOKE_KEY=$SMOKE_KEY" --environment "BUILD=$BUILD")
+ENVS=(--environment "DOCAPI_ENDPOINT=$DOCAPI" --environment "TABLE_NAME=$NAME" --environment "SESSION_SECRET=$SESSION_SECRET" --environment "SMOKE_KEY=$SMOKE_KEY" --environment "BUILD=$BUILD" --environment "TG_HOOK_SECRET=$TG_HOOK_SECRET" --environment "SITE_URL=$SITE_URL")
 if [ -n "${SMTP_HOST:-}" ] && [ -n "${SMTP_USER:-}" ] && [ -n "${SMTP_PASS:-}" ]; then
   ENVS+=(--environment "SMTP_HOST=$SMTP_HOST" --environment "SMTP_PORT=${SMTP_PORT:-465}" --environment "SMTP_USER=$SMTP_USER" --environment "SMTP_PASS=$SMTP_PASS" --environment "MAIL_FROM=${MAIL_FROM:-$SMTP_USER}")
   say "mail: smtp via $SMTP_HOST"
@@ -64,6 +71,9 @@ else
   say "mail: not configured (codes are shown on screen)"
 fi
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then ENVS+=(--environment "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN"); fi
+for V in ADMIN_PASSWORD VK_CLIENT_ID VK_CLIENT_SECRET FACEIT_API_KEY; do
+  if [ -n "${!V:-}" ]; then ENVS+=(--environment "$V=${!V}"); say "secret $V: set"; else say "secret $V: not set"; fi
+done
 yc serverless function version create --function-name "$NAME" --runtime nodejs22 --entrypoint index.handler --memory 256m --execution-timeout 15s \
   --source-path "$WORK/build.zip" --service-account-id "$SA_ID" "${ENVS[@]}" >/dev/null
 say "function version created (build $BUILD)"
@@ -116,6 +126,10 @@ if [ "$OK" != "1" ]; then say "ERROR: site did not come up"; exit 14; fi
 say "health: $(cat "$WORK/health.json")"
 
 if [ -n "${SMTP_HOST:-}" ]; then say "mail test: $(curl -s --max-time 20 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d '{}' "https://$DOMAIN/api/health/mail")"; fi
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
+  say "telegram webhook: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" --data-urlencode "url=https://$DOMAIN/api/tg/hook" --data-urlencode "secret_token=$TG_HOOK_SECRET" --data-urlencode 'allowed_updates=["message"]' | head -c 200)"
+  say "telegram bot: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe" | jq -r '.result.username // .description' 2>/dev/null)"
+fi
 say "7/7 smoke test"
 SMOKE_KEY="$SMOKE_KEY" node dev/smoke.js "https://$DOMAIN"
 

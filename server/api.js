@@ -29,7 +29,10 @@ module.exports = function makeApi(db, opts) {
     return u;
   }
   async function need(req) { const u = await currentUser(req); if (!u) throw new Http(401, "auth"); return u; }
-  function me(u) { return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], stacks: u.stacks || {}, created: u.created }; }
+  function me(u) {
+    return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], stacks: u.stacks || {}, created: u.created,
+      hasPass: !!u.pass, tg: u.tg ? { name: u.tg.name, on: !u.tg.off } : null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit ? u.faceit.nick : null, ver: u.ver || {} };
+  }
   function view(p, viewer) {
     const o = Object.assign({}, p), has = !!(p.c && (p.c.dc || p.c.tg));
     o.hasC = has;
@@ -68,6 +71,7 @@ module.exports = function makeApi(db, opts) {
     return {};
   }
   function login(u) { return [A.sessionCookie(A.makeSession(u.id, u.sv || 0))]; }
+  let social = null;
 
   /* ---------- auth ---------- */
   async function register(req) {
@@ -129,7 +133,7 @@ module.exports = function makeApi(db, opts) {
     await limit("login:" + req.ip, 40, 600000);
     await limit("login:" + email, 10, 600000);
     const idx = email ? await db.get("e", email) : null, u = idx ? await db.get("u", idx.uid) : null;
-    if (!u || !(await A.checkPassword(pw, u.pass))) throw new Http(401, "bad_login");
+    if (!u || !u.pass || !(await A.checkPassword(pw, u.pass))) throw new Http(401, "bad_login");
     if (u.banned) throw new Http(403, "banned");
     return { body: { user: me(u), posts: await myPosts(u) }, cookies: login(u) };
   }
@@ -178,6 +182,7 @@ module.exports = function makeApi(db, opts) {
       const p = V.profile(b.profile, u.profile);
       if (mine.length && !p.dc && !p.tg) throw new Http(400, "need_contact", { user: me(u) });
       if (p.dc !== u.profile.dc || p.tg !== u.profile.tg || p.adult !== u.profile.adult || String(p.langs) !== String(u.profile.langs) || String(p.time) !== String(u.profile.time)) touchPosts = true;
+      for (const sys of Object.keys(u.ver || {})) { const g = Object.keys(META.games).find(k => META.games[k].systems.includes(sys)), old = (u.profile.ranks[g] || {})[sys]; if (g && old) p.ranks[g] = Object.assign({}, p.ranks[g], { [sys]: old }); }
       u.profile = p;
     }
     if (b.lang === "ru" || b.lang === "en") u.lang = b.lang;
@@ -195,7 +200,7 @@ module.exports = function makeApi(db, opts) {
   }
   async function delMe(req) {
     const u = await need(req);
-    if (!(await A.checkPassword(String(req.json.password == null ? "" : req.json.password), u.pass))) throw new Http(401, "bad_password");
+    if (u.pass ? !(await A.checkPassword(String(req.json.password == null ? "" : req.json.password), u.pass)) : String(req.json.confirm || "") !== u.nick) throw new Http(401, "bad_password");
     for (const g of Object.keys(u.posts || {})) await db.del("p", u.posts[g]);
     for (const cv of await db.list("cv:" + u.id)) {
       const cid = cidOf(u.id, cv.sk);
@@ -205,7 +210,9 @@ module.exports = function makeApi(db, opts) {
     for (const part of ["cm:" + u.id, "nt:" + u.id]) for (const r of await db.list(part)) await db.del(part, r.sk);
     await teams.userGone(u);
     await db.del("nc", u.id); await db.del("on", u.id);
-    await db.del("e", u.email); await db.del("n", V.nickKey(u.nick)); await db.del("u", u.id);
+    await social.userGone(u);
+    if (u.email) await db.del("e", u.email);
+    await db.del("n", V.nickKey(u.nick)); await db.del("u", u.id);
     feed = null; feedGen++;
     return { body: { ok: true }, cookies: [A.clearCookie()] };
   }
@@ -233,13 +240,15 @@ module.exports = function makeApi(db, opts) {
     const u = await need(req), prof = u.profile;
     if (!prof.dc && !prof.tg) throw new Http(400, "need_contact");
     const f = V.post(req.json, prof);
+    const vsys = META.games[f.game].sysOf[f.mode], vrank = u.ver && u.ver[vsys] ? (prof.ranks[f.game] || {})[vsys] : null;
+    if (vrank) f.r = vrank;
     await limit("post:" + u.id, 30, 3600000);
     const now = Date.now(), G = META.games[f.game];
     prof.ranks[f.game] = Object.assign({}, prof.ranks[f.game], { [f.r.sys]: f.r });
     prof.roles[f.game] = f.roles; prof.region = f.region;
     if (!prof.games.includes(f.game)) prof.games.push(f.game);
     const extra = G.systems.filter(s => s !== f.r.sys).map(s => prof.ranks[f.game][s]).filter(Boolean);
-    const post = Object.assign({ id: A.timeId(), uid: u.id, nick: u.nick }, f, { extra, langs: prof.langs, t0: now, exp: now + f.dur * 60000, c: { dc: prof.dc, tg: prof.tg }, when: prof.time });
+    const post = Object.assign({ id: A.timeId(), uid: u.id, nick: u.nick }, f, { extra, ver: !!vrank, langs: prof.langs, t0: now, exp: now + f.dur * 60000, c: { dc: prof.dc, tg: prof.tg }, when: prof.time });
     u.posts = u.posts || {};
     let replaced = false;
     if (u.posts[f.game]) { const old = await db.get("p", u.posts[f.game]); if (old) { replaced = old.exp > now; toArchive(u, old, replaced ? "replaced" : "expired"); await db.del("p", old.id); } }
@@ -316,6 +325,10 @@ module.exports = function makeApi(db, opts) {
     const mineCv = await db.get("cv:" + u.id, uid), theirs = await db.get("cv:" + uid, u.id);
     await db.put("cv:" + u.id, uid, { id: uid, nick: target.nick, last: short, t: now, from: u.id, unread: 0, s: true, r: !!(mineCv && mineCv.r) });
     await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1, s: !!(theirs && theirs.s), r: true });
+    if (target.tg && !target.tg.off && !(theirs && theirs.tgAt && now - theirs.tgAt < 600000)) {
+      const seen = await db.get("on", uid);
+      if (!seen || now - seen.t > ONLINE_MS) { await social.pushMessage(target, u.nick, text); const cv = await db.get("cv:" + uid, u.id); if (cv) { cv.tgAt = now; await db.put("cv:" + uid, u.id, cv); } }
+    }
     return { body: { msg: { id, me: true, text, t: now } } };
   }
 
@@ -326,6 +339,7 @@ module.exports = function makeApi(db, opts) {
     await db.put("nt:" + uid, id, { id, k, a: a || [], go: go || null, t: Date.now(), read: false });
     const nc = await db.get("nc", uid);
     await db.put("nc", uid, { n: ((nc && nc.n) || 0) + 1 });
+    if (social) await social.push(uid, k, a);
   }
   async function listNotifs(req) {
     const u = await need(req), rows = await db.list("nt:" + u.id);
@@ -390,6 +404,9 @@ module.exports = function makeApi(db, opts) {
 
   const teams = require("./teams")({ db, Http, need, currentUser, limit, notify });
 
+  social = require("./social")({ db, Http, need, limit, me, loginCookies: login, hooks: { myPosts } });
+  const admin = require("./admin")({ db, Http, limit, notify, hooks: { feedDirty: () => { feed = null; feedGen++; }, teamsDirty: () => teams.dirty() } });
+
   function originOk(origin, h) {
     const o = String(origin).replace(/^https?:\/\//, "").toLowerCase();
     if (o === String(h.host || "").toLowerCase() || o === String(h["x-forwarded-host"] || "").toLowerCase()) return true;
@@ -400,7 +417,7 @@ module.exports = function makeApi(db, opts) {
   /* ---------- router ---------- */
   const ROUTES = [
     ["GET", /^\/api\/health$/, async () => { let dbOk = true, err; try { await db.ping(); } catch (e) { dbOk = false; err = String(e.message).slice(0, 200); } return { status: dbOk ? 200 : 503, body: { ok: dbOk, db: dbOk, err, mail: mail.mode(), build: process.env.BUILD || "dev", now: Date.now() } }; }],
-    ["GET", /^\/api\/config$/, async () => ({ body: { mail: mail.mode(), build: process.env.BUILD || "dev" } })],
+    ["GET", /^\/api\/config$/, async () => ({ body: Object.assign({ mail: mail.mode(), build: process.env.BUILD || "dev" }, social.config()) })],
     ["POST", /^\/api\/health\/mail$/, async req => {
       // deploy-time check: sends a test letter to the site's own mailbox
       const k = process.env.SMOKE_KEY; if (!k || !A.safeEq(req.headers["x-smoke-key"] || "", k)) throw new Http(403, "forbidden");
@@ -433,7 +450,7 @@ module.exports = function makeApi(db, opts) {
     ["GET", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, listComments],
     ["PUT", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, putComment],
     ["DELETE", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, delComment]
-  ].concat(teams.routes);
+  ].concat(teams.routes, admin.routes, social.routes);
 
   return async function handle(req) {
     try {
@@ -450,6 +467,7 @@ module.exports = function makeApi(db, opts) {
           if (!req.json || typeof req.json !== "object" || Array.isArray(req.json)) throw new Http(400, "bad_json");
         }
         const r = await fn(req, m[1]);
+        if (r.redirect) return { status: 302, redirect: r.redirect, body: {}, cookies: r.cookies || [] };
         return { status: r.status || 200, body: r.body, cookies: r.cookies || [] };
       }
       throw known ? new Http(405, "method") : new Http(404, "not_found");

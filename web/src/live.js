@@ -144,8 +144,9 @@ async function pushProfile() {
   return r;
 }
 function adoptUser(u) {
-  ME = { id: u.id, email: u.email, nick: u.nick };
+  ME = { id: u.id, email: u.email, nick: u.nick, hasPass: u.hasPass !== false, tg: u.tg || null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit || null, ver: u.ver || {} };
   S.profile = Object.assign(blankProfile(S.lang), u.profile, { nick: u.nick });
+  Object.keys(ME.ver).forEach(sys => { S.profile.ver[sys] = "api"; });
   GAME_KEYS.forEach(g => { if (!S.profile.ranks[g]) S.profile.ranks[g] = {}; });
   setLists(u);
   S.archive = (u.archive || []).slice();
@@ -171,7 +172,7 @@ function signedOut(expired) {
 function adoptPost(p) {
   const o = Object.assign({}, p);
   o.t0 = p.t0 - LV.skew; o.exp = p.exp - LV.skew; o.t = o.t0;
-  o.mine = !!ME && p.uid === ME.id; o.on = !!p.on; o.ver = false; o.cvis = "all";
+  o.mine = !!ME && p.uid === ME.id; o.on = !!p.on; o.ver = !!p.ver; o.cvis = "all";
   return o;
 }
 function setFeed(list) {
@@ -249,7 +250,7 @@ function card(p) {
   const who = `<button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button>`;
   const av = `<button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, p.on && !p.mine)}</button>`;
   const tagline = p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : "";
-  const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
+  const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${p.ver ? `<span class="ver" title="${esc(t("lv_verified"))}">${ICON.shield}</span>` : ""}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
   const note = noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : "";
   const foot = p.mine
     ? `<div class="c-foot">${needHtml(p)}</div><div class="c-foot">${expHtml(p)}<div class="c-acts"><button class="btn small" data-action="renew" data-id="${id}">${ICON.refresh}${esc(t("renew", durLabel(p.dur)))}</button><button class="iconbtn" data-action="del-post" data-id="${id}" aria-label="${esc(t("del"))}" title="${esc(t("del"))}">${ICON.trash}</button></div></div>`
@@ -479,9 +480,9 @@ function authBody() {
   const err = AU.err ? `<p class="ferr" role="alert">${esc(AU.err)}</p>` : "";
   const dev = AU.devCode ? `<p class="lv-dev">${esc(t("lv_dev_code", AU.devCode))}</p>` : "";
   let h = "";
-  if (m === "login") h = email + pass(t("lv_pass"), "current-password") + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="register">${esc(t("lv_to_reg"))}</button><button type="button" class="lv-a" data-au="reset">${esc(t("lv_forgot"))}</button></div>`;
+  if (m === "login") h = email + pass(t("lv_pass"), "current-password") + err + socialButtons() + `<div class="lv-links2"><button type="button" class="lv-a" data-au="register">${esc(t("lv_to_reg"))}</button><button type="button" class="lv-a" data-au="reset">${esc(t("lv_forgot"))}</button></div>`;
   else if (m === "register") h = `<div class="field"><label class="lbl" for="au-nick">${esc(t("nick"))}</label><input class="inp" id="au-nick" autocomplete="nickname" autocapitalize="off" spellcheck="false" minlength="3" maxlength="20" required placeholder="${esc(t("nick_ph"))}" value="${esc(AU.nick)}"><p class="hint">${esc(t("lv_nick_hint"))}</p></div>` + email + pass(t("lv_pass"), "new-password", t("lv_pass_hint")) +
-    `<label class="check lv-consent"><input type="checkbox" id="au-consent" required${AU.consent ? " checked" : ""}> <span>${esc(c[0])}<a href="/rules" target="_blank" rel="noopener">${esc(c[1])}</a>${esc(c[2])}<a href="/privacy" target="_blank" rel="noopener">${esc(c[3])}</a>${esc(c[4])}</span></label>` + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="login">${esc(t("lv_to_login"))}</button></div>`;
+    `<label class="check lv-consent"><input type="checkbox" id="au-consent" required${AU.consent ? " checked" : ""}> <span>${esc(c[0])}<a href="/rules" target="_blank" rel="noopener">${esc(c[1])}</a>${esc(c[2])}<a href="/privacy" target="_blank" rel="noopener">${esc(c[3])}</a>${esc(c[4])}</span></label>` + err + socialButtons() + `<div class="lv-links2"><button type="button" class="lv-a" data-au="login">${esc(t("lv_to_login"))}</button></div>`;
   else if (m === "code") h = `<p class="lv-lead">${esc(t("lv_code_sent", AU.email))}</p>` + dev + code + err + `<p class="hint">${esc(t("lv_code_spam"))}</p><div class="lv-links2"><button type="button" class="lv-a" data-au="resend">${esc(t("lv_resend"))}</button><button type="button" class="lv-a" data-au="register">${esc(t("lv_back"))}</button></div>`;
   else if (m === "reset") h = `<p class="lv-lead">${esc(t("lv_reset_hint"))}</p>` + email + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="login">${esc(t("lv_back"))}</button></div>`;
   else h = `<p class="lv-lead">${esc(t("lv_code_sent", AU.email))}</p>` + dev + code + pass(t("lv_pass_new"), "new-password", t("lv_pass_hint")) + err + `<div class="lv-links2"><button type="button" class="lv-a" data-au="reset">${esc(t("lv_back"))}</button></div>`;
@@ -495,6 +496,7 @@ function authRender() {
       const b = e.target.closest("[data-au]"); if (!b || !AU) return;
       authRead();
       if (b.dataset.au === "resend") { authResend(); return; }
+      if (b.dataset.au === "tg") { tgFlow(false); return; }
       AU.mode = b.dataset.au; AU.err = ""; AU.code = ""; AU.devCode = ""; authRender();
     });
     const first = ov.querySelector(m === "code" || m === "reset2" ? "#au-code" : m === "register" ? "#au-nick" : "#au-email");
@@ -576,8 +578,9 @@ function renderProfile() {
   const favRows = LV.favList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="iconbtn fav" data-action="fav" data-id="${esc(x.id)}" aria-label="${esc(t("fav_on"))}" title="${esc(t("fav_on"))}">${ICON.star}</button></div>`).join("");
   const blkRows = LV.blockList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="btn ghost small" data-action="unblock" data-id="${esc(x.id)}">${esc(t("unblock"))}</button></div>`).join("");
   h += `<div class="panel" id="ps-people"><div class="field"><h2 class="sec">${esc(t("favs_title"))}</h2>${favRows ? `<div>${favRows}</div>` : `<p class="hint">${esc(t("favs_empty"))}</p>`}</div><div class="field"><h2 class="sec">${esc(t("blocked_title"))}</h2>${blkRows ? `<div>${blkRows}</div>` : `<p class="hint">${esc(t("blocked_empty"))}</p>`}</div></div>`;
+  h += linksPanel();
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
-  h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email)}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
+  h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
   loadComments(ME.id);
 }
@@ -605,8 +608,9 @@ function nickSheet() {
   });
 }
 function deleteAccSheet() {
-  miniSheet(t("lv_del_acc"), `<p class="lv-lead">${esc(t("lv_del_acc_t"))}</p><div class="field"><label class="lbl" for="ms-pass">${esc(t("lv_pass"))}</label><input class="inp" id="ms-pass" type="password" autocomplete="current-password" maxlength="72"></div>`, t("lv_del_acc"), true, async ov => {
-    const r = await api("DELETE", "/me", { password: ov.querySelector("#ms-pass").value });
+  const byNick = !ME.hasPass;
+  miniSheet(t("lv_del_acc"), `<p class="lv-lead">${esc(t(byNick ? "lv_del_acc_nick" : "lv_del_acc_t"))}</p><div class="field"><label class="lbl" for="ms-pass">${esc(t(byNick ? "nick" : "lv_pass"))}</label><input class="inp" id="ms-pass" ${byNick ? 'autocomplete="off"' : 'type="password" autocomplete="current-password"'} maxlength="72"></div>`, t("lv_del_acc"), true, async ov => {
+    const val = ov.querySelector("#ms-pass").value, r = await api("DELETE", "/me", byNick ? { confirm: val.trim() } : { password: val });
     if (!r.ok) return errText(r);
     signedOut(false); toast(t("lv_del_acc_done")); return "";
   });
@@ -736,6 +740,8 @@ async function softRefresh() {
 }
 function addLive() {}
 function openDeepLink() {
+  const so = /^#\/(signup|linked|err)\/([A-Za-z0-9_-]{2,40})$/.exec(location.hash || "");
+  if (so) { try { history.replaceState(null, "", location.pathname); } catch (e) {} socialRoute(so[1], so[2]); return; }
   const m = /^#\/([pt])\/([A-Za-z0-9_-]{6,40})$/.exec(location.hash || ""); if (!m) return;
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   if (m[1] === "p") playerSheet(m[2]);
@@ -759,11 +765,14 @@ document.addEventListener("click", e => {
   if (fn) { e.preventDefault(); e.stopPropagation(); fn(); }
   else if (teamClick(a)) { e.preventDefault(); e.stopPropagation(); }
 }, true);
+document.addEventListener("click", e => { const b = e.target.closest("[data-lk]"); if (b) linkAct(b.dataset.lk); });
+document.addEventListener("submit", e => { if (e.target.id === "fcForm") { e.preventDefault(); faceitLink($("#fcNick").value.trim()); } });
 document.addEventListener("change", e => { const el = e.target; if (el.dataset && el.dataset.trole != null && el.dataset.team) { e.stopPropagation(); teamRoleChange(el); } }, true);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && LV.ready && Date.now() - LV.feedAt > 30000) softRefresh(); if (!document.hidden) chatTick(); });
 window.addEventListener("hashchange", () => { if (LV.ready) openDeepLink(); });
 async function start() {
-  const [me, okFeed] = await Promise.all([api("GET", "/me"), refreshFeed(true)]);
+  const [me, okFeed, cfg] = await Promise.all([api("GET", "/me"), refreshFeed(true), api("GET", "/config")]);
+  if (cfg.ok) LV.cfg = cfg;
   if (me.ok && me.user) {
     adoptUser(me.user);
     // the feed was requested in parallel: mark my own listings now that we know who I am

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Админка — Stuckup</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#0b0d12;--panel:#141822;--line:#262d3a;--fg:#eef1f6;--fg2:#c3cad6;--muted:#8a93a5;--accent:#ffb000;--danger:#ff6b6b;--ok:#3ecf8e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+h1{font-size:20px;margin:0;flex:1;letter-spacing:.04em}
+h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--muted)}
+.item{display:grid;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0;padding-top:0}
+.item .h{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:baseline}
+.item .h span{color:var(--muted);font-size:13px}
+.tag{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--fg2)}
+.note{margin:0;color:var(--fg2);overflow-wrap:anywhere}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;border:1px solid var(--line);background:#1b2029;color:var(--fg);border-radius:9px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:#3a4458}
+button.pri{background:var(--accent);border-color:transparent;color:#1a1300;font-weight:600}
+button.dng{color:var(--danger)}
+input{font:inherit;background:#0f131b;border:1px solid var(--line);color:var(--fg);border-radius:9px;padding:9px 12px;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1 1 200px;width:auto}
+.muted{color:var(--muted)}.err{color:var(--danger);min-height:1.3em;margin:8px 0 0}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:7px 6px;border-top:1px solid var(--line)}th{color:var(--muted);font-weight:500;border-top:0}
+#login{max-width:360px;margin:12vh auto 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="panel" hidden>
+    <h1 style="margin-bottom:12px">Stuckup · админка</h1>
+    <form id="lf"><input type="password" id="pw" placeholder="Пароль администратора" autocomplete="current-password" required><p class="err" id="lerr"></p><button class="pri" type="submit">Войти</button></form>
+  </div>
+  <div id="app" hidden>
+    <header><h1>STUCKUP · админка</h1><button id="reload">Обновить</button><button id="out">Выйти</button></header>
+    <div class="kpis" id="kpis"></div>
+    <h2>Жалобы</h2><div class="panel" id="reports"></div>
+    <h2>Оспоренные результаты праков</h2><div class="panel" id="disputes"></div>
+    <h2>Заблокировать или разблокировать игрока</h2>
+    <div class="panel"><div class="row"><input id="bnick" placeholder="Ник игрока"><input id="breason" placeholder="Причина (для себя)"><button class="dng" id="bban">Заблокировать</button><button id="bunban">Разблокировать</button></div><p class="err" id="berr"></p></div>
+    <h2>Заблокированные</h2><div class="panel" id="banned"></div>
+    <h2>Новые игроки</h2><div class="panel" id="recent"></div>
+  </div>
+</div>
+<script>
+(function () {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const when = t => new Date(t).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const REASON = { toxic: "Оскорбления", spam: "Спам или реклама", fake: "Ненастоящий ранг", scam: "Мошенничество" };
+const ERR = { bad_password: "Неверный пароль.", too_many: "Слишком много попыток. Подождите 15 минут.", admin_off: "Админка выключена: в секретах репозитория нет ADMIN_PASSWORD (от 8 символов).", gone: "Уже не существует.", network: "Нет связи с сервером." };
+async function api(method, path, body) {
+  try {
+    const r = await fetch("/api/admin" + path, { method, credentials: "same-origin", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    return Object.assign(j, { ok: r.ok, status: r.status });
+  } catch (e) { return { ok: false, error: "network" }; }
+}
+const msg = r => ERR[r.error] || "Ошибка: " + (r.error || r.status);
+async function load() {
+  const r = await api("GET", "/overview");
+  if (!r.ok) { $("#app").hidden = true; $("#login").hidden = false; if (r.status !== 401) $("#lerr").textContent = msg(r); return; }
+  $("#login").hidden = true; $("#app").hidden = false;
+  const s = r.stats;
+  $("#kpis").innerHTML = [["Игроков", s.users], ["Новых за сутки", s.new24], ["Объявлений в ленте", s.posts], ["Команд", s.teams], ["Сыграно праков", s.played], ["Заблокировано", s.banned]].map(k => `<div class="kpi"><b>${k[1]}</b><span>${k[0]}</span></div>`).join("");
+  $("#reports").innerHTML = r.reports.length ? r.reports.map(x => `<div class="item"><div class="h"><b>${esc(x.targetNick)}</b><span class="tag">${esc(REASON[x.reason] || x.reason)}</span><span>от ${esc(x.fromNick)} · ${when(x.t)}</span></div>
+<p class="note">${esc(x.post.note || "(без текста)")}</p><span class="muted">${esc(x.post.game)} · контакты: ${esc([x.post.c && x.post.c.dc, x.post.c && x.post.c.tg ? "@" + x.post.c.tg : ""].filter(Boolean).join(", ") || "нет")}</span>
+<div class="acts"><button data-rep="${esc(x.id)}" data-a="dismiss">Нарушения нет</button><button data-rep="${esc(x.id)}" data-a="warn">Предупредить</button><button data-rep="${esc(x.id)}" data-a="remove">Снять объявление</button><button class="dng" data-rep="${esc(x.id)}" data-a="ban">Заблокировать игрока</button></div></div>`).join("") : '<span class="muted">Новых жалоб нет.</span>';
+  $("#disputes").innerHTML = r.disputes.length ? r.disputes.map(x => `<div class="item"><div class="h"><b>${esc(x.host)} — ${esc(x.guest)}</b><span>${esc(x.game)} · ${when(x.at)}</span></div>
+<span class="muted">Результат внесли ${x.rep.by === "host" ? esc(x.host) : esc(x.guest)}: ${x.rep.beh === "ns" ? "соперник не пришёл" : x.rep.wins + ":" + x.rep.losses}. Вторая команда не согласна.</span>
+<div class="acts"><button data-sc="${esc(x.id)}" data-a="restore">Вернуть на внесение результата</button><button class="dng" data-sc="${esc(x.id)}" data-a="void">Аннулировать прак</button></div></div>`).join("") : '<span class="muted">Споров нет.</span>';
+  $("#banned").innerHTML = r.banned.length ? `<table><tr><th>Ник</th><th>Причина</th><th>Когда</th><th></th></tr>${r.banned.map(x => `<tr><td>${esc(x.nick)}</td><td>${esc(REASON[x.reason] || x.reason || "—")}</td><td>${x.t ? when(x.t) : ""}</td><td><button data-unban="${esc(x.id)}">Разблокировать</button></td></tr>`).join("")}</table>` : '<span class="muted">Никого.</span>';
+  $("#recent").innerHTML = `<table><tr><th>Ник</th><th>Вход</th><th>Зарегистрирован</th></tr>${r.recent.map(x => `<tr><td>${esc(x.nick)}</td><td>${esc(x.via)}</td><td>${when(x.created)}</td></tr>`).join("")}</table>`;
+}
+$("#lf").addEventListener("submit", async e => { e.preventDefault(); $("#lerr").textContent = ""; const r = await api("POST", "/login", { password: $("#pw").value }); if (!r.ok) { $("#lerr").textContent = msg(r); return; } $("#pw").value = ""; load(); });
+$("#out").addEventListener("click", async () => { await api("POST", "/logout", {}); load(); });
+$("#reload").addEventListener("click", load);
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return; let r = null;
+  if (b.dataset.rep) { if (b.dataset.a === "ban" && !confirm("Заблокировать игрока и снять его объявления?")) return; r = await api("POST", "/act", { report: b.dataset.rep, action: b.dataset.a }); }
+  else if (b.dataset.sc) r = await api("POST", "/act", { scrim: b.dataset.sc, action: b.dataset.a });
+  else if (b.dataset.unban) r = await api("POST", "/act", { user: b.dataset.unban, action: "unban" });
+  else if (b.id === "bban" || b.id === "bunban") { const n = $("#bnick").value.trim(); if (!n) return; r = await api("POST", "/act", { user: n, action: b.id === "bban" ? "ban" : "unban", reason: $("#breason").value }); $("#berr").textContent = r.ok ? "Готово: " + r.nick : (r.status === 404 ? "Игрок с таким ником не найден." : msg(r)); if (r.ok) { $("#bnick").value = ""; $("#breason").value = ""; } }
+  if (r) { if (!r.ok && r.status === 401) { load(); return; } load(); }
+});
+load();
+})();
+</script>
+</body>
+</html>

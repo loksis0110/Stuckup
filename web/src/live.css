@@ -41,3 +41,12 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .lv-cm p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--fg-2); overflow-wrap: anywhere; }
 .lv-cmform { display: grid; gap: 8px; margin-top: 10px; justify-items: start; }
 .lv-cmform textarea { width: 100%; min-height: 64px; }
+.lv-soc { display: grid; gap: 10px; }
+.lv-soc > span { font-size: 12.5px; color: var(--muted); text-align: center; }
+.lv-soc > div { display: flex; gap: 8px; }
+.lv-soc .btn { flex: 1; justify-content: center; text-decoration: none; }
+.lv-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--fg-2); font-size: 14.5px; line-height: 1.5; }
+#tgOpen { text-decoration: none; margin: 4px 0; display: flex; }
+.lv-fc { display: flex; gap: 6px; flex: 1 1 220px; }
+.lv-fc .inp { min-width: 0; }
+#ps-link .acc a.btn { text-decoration: none; }

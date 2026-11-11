@@ -6,14 +6,14 @@ log = src.read_text(errors="replace") if src.exists() else "(no log produced)"
 secrets = []
 key = os.environ.get("YC_SA_KEY", "")
 if key:
-    for salt in ("session|", "smoke|"):
+    for salt in ("session|", "smoke|", "tghook|"):
         secrets.append(hashlib.sha256((salt + key).encode()).hexdigest())
     try:
         k = json.loads(key)
         secrets += [l for l in str(k.get("private_key", "")).splitlines() if len(l) > 20]
     except Exception:
         pass
-for name in ("TELEGRAM_BOT_TOKEN", "SMTP_PASS"):
+for name in ("TELEGRAM_BOT_TOKEN", "SMTP_PASS", "ADMIN_PASSWORD", "VK_CLIENT_SECRET", "FACEIT_API_KEY"):
     v = os.environ.get(name, "")
     if len(v) >= 6: secrets.append(v)
 for s in secrets:

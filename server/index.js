@@ -12,7 +12,7 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
   ".webmanifest": "application/manifest+json; charset=utf-8", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml; charset=utf-8", ".svg": "image/svg+xml",
   ".png": "image/png", ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2" };
 const TEXT = [".html", ".js", ".css", ".json", ".webmanifest", ".txt", ".xml", ".svg"];
-const PAGES = { "/": "index.html", "/privacy": "privacy.html", "/rules": "rules.html" };
+const PAGES = { "/": "index.html", "/privacy": "privacy.html", "/rules": "rules.html", "/admin": "admin.html" };
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 const files = new Map();
@@ -65,6 +65,7 @@ async function handler(event, context) {
     }
     const ip = String((rc.identity && rc.identity.sourceIp) || (headers["x-forwarded-for"] || "").split(",")[0].trim() || "0").slice(0, 64);
     const r = await api({ method, path: p, query: event.queryStringParameters || {}, headers, cookies: cookies(headers.cookie), json, ip });
+    if (r.redirect) return out(302, { Location: r.redirect, "Cache-Control": "no-store" }, "", false, r.cookies);
     return out(r.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }, JSON.stringify(r.body), false, r.cookies);
   }
 
