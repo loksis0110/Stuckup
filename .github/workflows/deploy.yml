@@ -34,7 +34,7 @@ jobs:
           FACEIT_API_KEY: ${{ secrets.FACEIT_API_KEY }}
         run: |
           set +e
-          env -u SMTP_HOST -u SMTP_USER -u SMTP_PASS node --test dev/test.js > "$RUNNER_TEMP/deploy.log" 2>&1
+          env -u SMTP_HOST -u SMTP_USER -u SMTP_PASS -u ADMIN_PASSWORD -u TELEGRAM_BOT_TOKEN -u VK_CLIENT_ID -u VK_CLIENT_SECRET -u FACEIT_API_KEY node --test dev/test.js > "$RUNNER_TEMP/deploy.log" 2>&1
           CODE=$?
           if [ "$CODE" = "0" ]; then bash tools/deploy.sh > "$RUNNER_TEMP/deploy.log" 2>&1; CODE=$?; else echo "TESTS FAILED" >> "$RUNNER_TEMP/deploy.log"; fi
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
