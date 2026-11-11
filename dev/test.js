@@ -7,7 +7,8 @@ const { handler } = require("../server/index.js");
 function client() {
   let jar = "";
   return async function call(method, path, body, headers) {
-    const ev = { httpMethod: method, path, headers: Object.assign({ Host: "localhost", Cookie: jar }, body !== undefined ? { "Content-Type": "application/json" } : {}, headers || {}), requestContext: { identity: { sourceIp: "1.2.3.4" } } };
+    const qi = path.indexOf("?"), query = qi < 0 ? {} : Object.fromEntries(new URLSearchParams(path.slice(qi + 1))); if (qi >= 0) path = path.slice(0, qi);
+    const ev = { httpMethod: method, path, queryStringParameters: query, headers: Object.assign({ Host: "localhost", Cookie: jar }, body !== undefined ? { "Content-Type": "application/json" } : {}, headers || {}), requestContext: { identity: { sourceIp: "1.2.3.4" } } };
     if (body !== undefined) ev.body = JSON.stringify(body);
     const r = await handler(ev, {});
     const sc = r.multiValueHeaders && r.multiValueHeaders["Set-Cookie"];
@@ -141,4 +142,28 @@ test("password reset (smoke mailbox) and code attempts", async () => {
   assert.equal((await d("POST", "/api/auth/reset/confirm", { email, code: rs.json.devCode, password: "newpassword" })).json.error, "code_tries");
   // old session is still valid until the password actually changes
   assert.equal((await c("GET", "/api/me")).json.user.nick, "Resetter");
+});
+
+test("chat, presence, archive", async () => {
+  const a = client(), b = client();
+  const ua = await signup(a, "c1@example.com", "ChatA"), ub = await signup(b, "c2@example.com", "ChatB");
+  assert.equal((await a("POST", "/api/chats/" + ua.id, { text: "hi" })).json.error, "bad_target");
+  assert.equal((await a("POST", "/api/chats/" + ub.id, { text: "   " })).json.error, "empty");
+  const m1 = await a("POST", "/api/chats/" + ub.id, { text: "Привет! Идём в премьер?" }); assert.equal(m1.status, 200, JSON.stringify(m1.json));
+  await a("POST", "/api/chats/" + ub.id, { text: "Я на авп" });
+  const lb = await b("GET", "/api/chats?beat=1"); assert.equal(lb.json.chats.length, 1); assert.equal(lb.json.chats[0].unread, 2); assert.equal(lb.json.chats[0].nick, "ChatA");
+  const cb = await b("GET", "/api/chats/" + ua.id); assert.equal(cb.json.msgs.length, 2); assert.equal(cb.json.msgs[0].me, false);
+  assert.equal((await b("GET", "/api/chats")).json.chats[0].unread, 0);
+  const r = await b("POST", "/api/chats/" + ua.id, { text: "Го" });
+  const ca = await a("GET", "/api/chats/" + ub.id + "?after=" + m1.json.msg.id); assert.equal(ca.json.msgs.length, 2); assert.equal(ca.json.msgs[1].text, "Го");
+  await b("POST", "/api/blocks", { uid: ua.id, on: true });
+  assert.equal((await a("POST", "/api/chats/" + ub.id, { text: "эй" })).json.error, "blocked_by");
+  assert.equal((await b("POST", "/api/chats/" + ua.id, { text: "эй" })).json.error, "you_blocked");
+  // presence + archive
+  await b("PUT", "/api/me", { profile: { dc: "chat.b" } });
+  const p = await b("POST", "/api/posts", POST);
+  await new Promise(r2 => setTimeout(r2, 10));
+  const feed = (await a("GET", "/api/posts")).json.posts.find(x2 => x2.id === p.json.post.id); assert.equal(feed.on, true);
+  const d = await b("DELETE", "/api/posts/" + p.json.post.id, {}); assert.equal(d.json.archive.length, 1); assert.equal(d.json.archive[0].reason, "closed");
+  assert.equal((await b("GET", "/api/me")).json.user.archive[0].game, "cs2");
 });

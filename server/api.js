@@ -2,6 +2,7 @@
 const A = require("./auth"), V = require("./validate"), mail = require("./mail");
 const META = V.META;
 
+const ONLINE_MS = 5 * 60000, MSG_MAX = 500;
 const CODE_TTL = 15 * 60000, CODE_TRIES = 5, RESEND_MS = 60000, FEED_TTL = 4000, MAX_LIST = 200;
 const REASONS = ["toxic", "spam", "fake", "scam"];
 const SMOKE_DOMAIN = "@smoke.stuckup.invalid";
@@ -28,7 +29,7 @@ module.exports = function makeApi(db, opts) {
     return u;
   }
   async function need(req) { const u = await currentUser(req); if (!u) throw new Http(401, "auth"); return u; }
-  function me(u) { return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], created: u.created }; }
+  function me(u) { return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], created: u.created }; }
   function view(p, viewer) {
     const o = Object.assign({}, p), has = !!(p.c && (p.c.dc || p.c.tg));
     o.hasC = has;
@@ -38,11 +39,20 @@ module.exports = function makeApi(db, opts) {
   async function loadFeed() {
     const now = Date.now();
     if (feed && now - feed.t < FEED_TTL) return feed.posts;
-    const rows = await db.list("p"), live = [], dead = [];
+    const rows = await db.list("p"), live = [], dead = [], on = {};
     for (const row of rows) (row.d.exp > now ? live : dead).push(row.d);
-    for (const p of dead.slice(0, 20)) await db.del("p", p.id);
-    feed = { t: now, posts: live };
+    for (const p of dead.slice(0, 20)) {
+      await db.del("p", p.id);
+      const u = await db.get("u", p.uid);
+      if (u) { toArchive(u, p, "expired"); if (u.posts && u.posts[p.game] === p.id) delete u.posts[p.game]; await db.put("u", u.id, u); }
+    }
+    for (const row of await db.list("on")) { if (now - row.d.t < ONLINE_MS) on[row.sk] = true; else if (now - row.d.t > 86400000) await db.del("on", row.sk); }
+    for (const p of live) p.on = !!on[p.uid];
+    feed = { t: now, posts: live, on };
     return live;
+  }
+  function toArchive(u, p, reason) {
+    u.archive = [{ game: p.game, mode: p.mode, r: p.r, roles: p.roles, have: p.have, region: p.region, mic: p.mic, note: p.note, dur: p.dur, style: p.style, stags: p.stags, ended: Date.now(), reason }].concat(u.archive || []).slice(0, 20);
   }
   async function myPosts(u) {
     const out = [], now = Date.now();
@@ -222,7 +232,7 @@ module.exports = function makeApi(db, opts) {
     const post = Object.assign({ id: A.timeId(), uid: u.id, nick: u.nick }, f, { extra, langs: prof.langs, t0: now, exp: now + f.dur * 60000, c: { dc: prof.dc, tg: prof.tg }, when: prof.time });
     u.posts = u.posts || {};
     let replaced = false;
-    if (u.posts[f.game]) { const old = await db.get("p", u.posts[f.game]); if (old) { replaced = old.exp > now; await db.del("p", old.id); } }
+    if (u.posts[f.game]) { const old = await db.get("p", u.posts[f.game]); if (old) { replaced = old.exp > now; toArchive(u, old, replaced ? "replaced" : "expired"); await db.del("p", old.id); } }
     u.posts[f.game] = post.id;
     await db.put("p", post.id, post);
     await db.put("u", u.id, u);
@@ -238,10 +248,12 @@ module.exports = function makeApi(db, opts) {
     const { u, p } = await ownPost(req, id);
     if (p) {
       await db.del("p", p.id);
-      if (u.posts && u.posts[p.game] === p.id) { delete u.posts[p.game]; await db.put("u", u.id, u); }
+      toArchive(u, p, "closed");
+      if (u.posts && u.posts[p.game] === p.id) delete u.posts[p.game];
+      await db.put("u", u.id, u);
       feed = null;
     }
-    return { body: { ok: true } };
+    return { body: { ok: true, archive: u.archive || [] } };
   }
   async function renewPost(req, id) {
     const { u, p } = await ownPost(req, id), now = Date.now();
@@ -261,6 +273,39 @@ module.exports = function makeApi(db, opts) {
     const id = A.timeId();
     await db.put("rep", id, { id, t: Date.now(), from: u.id, fromNick: u.nick, target: p.uid, targetNick: p.nick, reason, post: { id: p.id, game: p.game, mode: p.mode, r: p.r, note: p.note, c: p.c } });
     return { body: { ok: true } };
+  }
+
+  /* ---------- chat ---------- */
+  function cidOf(a, b) { return a < b ? a + "~" + b : b + "~" + a; }
+  async function listChats(req) {
+    const u = await need(req), now = Date.now();
+    if (req.query.beat === "1") await db.put("on", u.id, { t: now });
+    const rows = await db.list("cv:" + u.id), on = (feed && feed.on) || {};
+    return { body: { chats: rows.map(r => Object.assign({}, r.d, { on: !!on[r.d.id] })), now } };
+  }
+  async function getChat(req, uid) {
+    const u = await need(req), rows = await db.list("m:" + cidOf(u.id, uid)), after = String(req.query.after || "");
+    const cv = await db.get("cv:" + u.id, uid);
+    if (cv && cv.unread) { cv.unread = 0; await db.put("cv:" + u.id, uid, cv); }
+    const msgs = rows.filter(r => r.sk > after).slice(-200).map(r => ({ id: r.d.id, me: r.d.from === u.id, text: r.d.text, t: r.d.t }));
+    return { body: { msgs, now: Date.now() } };
+  }
+  async function sendMessage(req, uid) {
+    const u = await need(req);
+    if (uid === u.id) throw new Http(400, "bad_target");
+    const text = String(req.json.text == null ? "" : req.json.text).replace(/[\u0000-\u0008\u000b-\u001f\u007f\u200b-\u200f\u2028-\u202e]/g, " ").trim().slice(0, MSG_MAX);
+    if (!text) throw new Http(400, "empty");
+    const target = await db.get("u", uid);
+    if (!target || target.banned) throw new Http(404, "bad_target");
+    if ((target.blocked || []).some(x => x.id === u.id)) throw new Http(403, "blocked_by");
+    if ((u.blocked || []).some(x => x.id === uid)) throw new Http(400, "you_blocked");
+    await limit("msg:" + u.id, 40, 60000);
+    const now = Date.now(), id = A.timeId(), short = text.slice(0, 80);
+    await db.put("m:" + cidOf(u.id, uid), id, { id, from: u.id, text, t: now });
+    await db.put("cv:" + u.id, uid, { id: uid, nick: target.nick, last: short, t: now, from: u.id, unread: 0 });
+    const theirs = await db.get("cv:" + uid, u.id);
+    await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1 });
+    return { body: { msg: { id, me: true, text, t: now } } };
   }
 
   function originOk(origin, h) {
@@ -296,7 +341,10 @@ module.exports = function makeApi(db, opts) {
     ["POST", /^\/api\/posts$/, createPost],
     ["DELETE", /^\/api\/posts\/([A-Za-z0-9_-]{1,40})$/, deletePost],
     ["POST", /^\/api\/posts\/([A-Za-z0-9_-]{1,40})\/renew$/, renewPost],
-    ["POST", /^\/api\/reports$/, report]
+    ["POST", /^\/api\/reports$/, report],
+    ["GET", /^\/api\/chats$/, listChats],
+    ["GET", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, getChat],
+    ["POST", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, sendMessage]
   ];
 
   return async function handle(req) {

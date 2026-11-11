@@ -750,11 +750,11 @@ table.lb .tn .sm { white-space: nowrap; overflow: hidden; text-overflow: ellipsi
 .toast[hidden] { display: none !important; }
 
 /* ---- live build: stage 1 (accounts, profile, shared feed) ---- */
-[data-nav="teams"], [data-nav="chats"], [data-nav="admin"], #bell, .col-chat, #stackbar { display: none !important; }
-[data-q="online"], [data-q="verified"], [data-pd="10080"] { display: none !important; }
+[data-nav="teams"], [data-nav="admin"], #bell, #stackbar { display: none !important; }
+[data-q="verified"], [data-pd="10080"] { display: none !important; }
 .field:has(> .lbl > .pro), .field:has(> #ob-nick), label.check:has(#pf2-showc) { display: none !important; }
 .demo-line:empty { display: none; }
-nav.bottom .in { grid-template-columns: repeat(3, 1fr); }
+nav.bottom .in { grid-template-columns: repeat(4, 1fr); }
 .me-btn.guest { display: flex; }
 .lv-in { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 10px; font-size: 13.5px; font-weight: 600; color: var(--fg); white-space: nowrap; }
 .me-btn.guest:hover .lv-in { border-color: var(--accent-line); }
@@ -780,14 +780,8 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .lv-id b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; }
 .lv-id span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .lv-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
-@media (min-width: 820px) {
-  .grid { grid-template-columns: minmax(0, 1fr); }
-  .col-feed, .col-page { max-width: 860px; }
-}
-@media (min-width: 1200px) {
-  .grid { grid-template-columns: 268px minmax(0, 1fr); }
-  .col-page { grid-column: 1 / 3; }
-}
+.m.lv-pending { opacity: .55; }
+.m.sys.lv-day { font-size: 11.5px; }
 
 @media (max-width: 639px) {
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1846,7 +1840,7 @@ function renderStack__base() {
 }
 
 /* ================= chat ================= */
-function unreadTotal() { return Object.keys(S.chats).filter(id => !S.blocked.includes(id)).reduce((a, id) => a + (S.chats[id].unread || 0), 0); }
+function unreadTotal__base() { return Object.keys(S.chats).filter(id => !S.blocked.includes(id)).reduce((a, id) => a + (S.chats[id].unread || 0), 0); }
 function renderUnread() { const n = unreadTotal(); $$("[data-unread]").forEach(b => { b.hidden = !n; b.textContent = n; }); }
 function lastT(id) { const m = S.chats[id].msgs; return m.length ? m[m.length - 1].t : 0; }
 function chatVisible(id) { return S.active === id && (isWide() || S.view === "chats"); }
@@ -1874,7 +1868,7 @@ function renderChat__base() {
   const ms = $("#msgs"); ms.scrollTop = ms.scrollHeight;
   renderUnread(); save();
 }
-function openChat(id) {
+function openChat__base(id) {
   if (!S.chats[id]) S.chats[id] = { msgs: [], unread: 0, n: 0 };
   S.active = id;
   if (!isWide()) setView("chats"); else renderChat();
@@ -1882,7 +1876,7 @@ function openChat(id) {
 }
 const SCAM_RE = /парол|password|steam ?guard|код подтвержд|скин|skins?\b|предмет|item|трейд|trade|обмен|деньг|money|переве|оплат|pay\b|карт[уаы]\b|card/i;
 function scamCheck(id, text) { const c = S.chats[id]; if (c && !c.warned && SCAM_RE.test(text)) { c.warned = true; c.msgs.push({ sys: true, text: t("scam_warn"), t: Date.now() }); } }
-function sendMsg(text) {
+function sendMsg__base(text) {
   const id = S.active; if (!id || !String(text).trim() || S.blocked.includes(id)) return;
   S.chats[id].msgs.push({ me: true, text: String(text).trim(), t: Date.now() });
   scamCheck(id, String(text));
@@ -2997,14 +2991,17 @@ Object.assign(T.ru, {
   lv_acc: "Аккаунт", lv_nick_change: "Изменить ник", lv_nick_title: "Новый ник", lv_nick_saved: "Ник изменён", lv_nick_limit: "Ник можно менять не чаще 3 раз в сутки.",
   lv_c_note: "Контакты из профиля попадают в ваши объявления. Их видят только вошедшие игроки.",
   lv_del_acc: "Удалить аккаунт", lv_del_acc_t: "Аккаунт, профиль и объявления будут удалены без возможности восстановления. Для подтверждения введите пароль.", lv_del_acc_done: "Аккаунт удалён",
-  lv_people: "Игроки", lv_posts: "Объявления",
+  lv_people: "Игроки", lv_posts: "Объявления", lv_contacts_btn: "Контакты",
+  chats_empty: "Здесь будут ваши переписки. Нажмите «Написать» в объявлении игрока.", lv_chat_guest: "Войдите, чтобы писать игрокам.", lv_not_sent: "Сообщение не отправлено.",
+  reason: { expired: "срок истёк", replaced: "заменено новым", closed: "снято вами" },
+  archive_note: "Последние снятые объявления. Любое можно разместить заново в один клик.",
   lv_err: { network: "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.", server: "Что-то сломалось на сервере. Попробуйте ещё раз.", auth: "Сначала войдите в аккаунт.",
     too_many: "Слишком много попыток. Попробуйте немного позже.", bad_email: "Проверьте адрес почты.", short_password: "Пароль должен быть не короче 8 символов.", long_password: "Пароль слишком длинный.",
     bad_nick: "Ник: 3–20 символов, буквы, цифры, точка, дефис и _.", nick_taken: "Этот ник уже занят.", email_taken: "Эта почта уже зарегистрирована — войдите.", need_consent: "Нужно принять правила.",
     bad_login: "Неверная почта или пароль.", bad_password: "Неверный пароль.", banned: "Аккаунт заблокирован за нарушение правил.", code_expired: "Код устарел. Запросите новый.", code_tries: "Слишком много неверных попыток. Запросите новый код.",
     bad_code: "Неверный код.", mail_failed: "Не получилось отправить письмо. Попробуйте позже.", mail_off: "Сброс пароля заработает, когда подключим почту. Напишите нам в Telegram.",
     need_contact: "Оставьте хотя бы один контакт, пока у вас есть активные объявления.", no_links: "Ссылки в тексте нельзя. Контакты указываются в профиле.", need_rank: "Укажите ранг.",
-    bad_dc: "Проверьте имя в Discord.", bad_tg: "Проверьте имя в Telegram.", post_gone: "Это объявление уже снято.", list_full: "Список заполнен.", bad_target: "Так не получится.", forbidden: "Нет доступа." }
+    bad_dc: "Проверьте имя в Discord.", bad_tg: "Проверьте имя в Telegram.", post_gone: "Это объявление уже снято.", blocked_by: "Игрок ограничил сообщения от вас.", you_blocked: "Этот игрок у вас в чёрном списке.", empty: "Пустое сообщение.", list_full: "Список заполнен.", bad_target: "Так не получится.", forbidden: "Нет доступа." }
 });
 Object.assign(T.en, {
   demo_tag: "beta", demo_line: "", about_title: "Stuckup — find teammates",
@@ -3038,14 +3035,17 @@ Object.assign(T.en, {
   lv_acc: "Account", lv_nick_change: "Change nickname", lv_nick_title: "New nickname", lv_nick_saved: "Nickname changed", lv_nick_limit: "You can change the nickname up to 3 times a day.",
   lv_c_note: "Profile contacts go into your listings. Only signed-in players see them.",
   lv_del_acc: "Delete account", lv_del_acc_t: "Your account, profile and listings will be deleted for good. Enter your password to confirm.", lv_del_acc_done: "Account deleted",
-  lv_people: "Players", lv_posts: "Listings",
+  lv_people: "Players", lv_posts: "Listings", lv_contacts_btn: "Contacts",
+  chats_empty: "Your conversations will appear here. Tap “Message” on a player's listing.", lv_chat_guest: "Sign in to message players.", lv_not_sent: "Message not sent.",
+  reason: { expired: "expired", replaced: "replaced by a new one", closed: "closed by you" },
+  archive_note: "Your recent closed listings. Any of them can be posted again with one tap.",
   lv_err: { network: "No connection to the server. Check your internet and try again.", server: "Something broke on the server. Please try again.", auth: "Please sign in first.",
     too_many: "Too many attempts. Try again a bit later.", bad_email: "Check the email address.", short_password: "The password must be at least 8 characters.", long_password: "The password is too long.",
     bad_nick: "Nickname: 3–20 characters, letters, digits, dot, hyphen and _.", nick_taken: "This nickname is taken.", email_taken: "This email is already registered — sign in.", need_consent: "You need to accept the rules.",
     bad_login: "Wrong email or password.", bad_password: "Wrong password.", banned: "This account is blocked for breaking the rules.", code_expired: "The code has expired. Request a new one.", code_tries: "Too many wrong attempts. Request a new code.",
     bad_code: "Wrong code.", mail_failed: "Could not send the email. Try again later.", mail_off: "Password reset will work once email is connected. Message us on Telegram.",
     need_contact: "Keep at least one contact while you have active listings.", no_links: "Links are not allowed in the text. Contacts go in your profile.", need_rank: "Set your rank.",
-    bad_dc: "Check the Discord username.", bad_tg: "Check the Telegram username.", post_gone: "This listing is no longer active.", list_full: "The list is full.", bad_target: "That will not work.", forbidden: "No access." }
+    bad_dc: "Check the Discord username.", bad_tg: "Check the Telegram username.", post_gone: "This listing is no longer active.", blocked_by: "This player does not accept your messages.", you_blocked: "This player is on your block list.", empty: "Empty message.", list_full: "The list is full.", bad_target: "That will not work.", forbidden: "No access." }
 });
 
 /* ---------- server ---------- */
@@ -3084,6 +3084,7 @@ function adoptUser(u) {
   S.profile = Object.assign(blankProfile(S.lang), u.profile, { nick: u.nick });
   GAME_KEYS.forEach(g => { if (!S.profile.ranks[g]) S.profile.ranks[g] = {}; });
   setLists(u);
+  S.archive = (u.archive || []).slice();
   LV.synced = JSON.stringify(profilePayload());
 }
 function setLists(o) {
@@ -3091,7 +3092,7 @@ function setLists(o) {
   S.favs = LV.favList.map(x => x.id); S.blocked = LV.blockList.map(x => x.id);
 }
 function signedOut(expired) {
-  ME = null; S.profile = blankProfile(S.lang); setLists({}); LV.synced = "";
+  ME = null; S.profile = blankProfile(S.lang); setLists({}); LV.synced = ""; S.chats = {}; S.active = null; S.archive = [];
   S.posts.forEach(p => { p.mine = false; SEED.push(p); }); S.posts = [];
   if ($("#overlay")) closeModal();
   setView("feed"); renderAll();
@@ -3103,7 +3104,7 @@ function signedOut(expired) {
 function adoptPost(p) {
   const o = Object.assign({}, p);
   o.t0 = p.t0 - LV.skew; o.exp = p.exp - LV.skew; o.t = o.t0;
-  o.mine = !!ME && p.uid === ME.id; o.on = false; o.ver = false; o.cvis = "all";
+  o.mine = !!ME && p.uid === ME.id; o.on = !!p.on; o.ver = false; o.cvis = "all";
   return o;
 }
 function setFeed(list) {
@@ -3165,6 +3166,7 @@ function filtered() {
     if (f.stags.length && !f.stags.every(s => (p.stags || []).includes(s))) return false;
     if (f.region !== "any" && p.region !== f.region) return false;
     if (f.lng !== "any" && !p.langs.includes(f.lng)) return false;
+    if (q.online && !p.on) return false;
     if (q.favs && !S.favs.includes(p.uid)) return false;
     if (q.mic && !p.mic) return false;
     if (q.contacts && !hasC(p)) return false;
@@ -3172,23 +3174,23 @@ function filtered() {
     if (q.match && !p.mine && !isMatch(p)) return false;
     if (txt && !(p.nick.toLowerCase().includes(txt) || noteOf(p).toLowerCase().includes(txt))) return false;
     return true;
-  }).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || (S.favs.includes(b.uid) ? 1 : 0) - (S.favs.includes(a.uid) ? 1 : 0) || b.t0 - a.t0);
+  }).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || (S.favs.includes(b.uid) ? 1 : 0) - (S.favs.includes(a.uid) ? 1 : 0) || (b.on ? 1 : 0) - (a.on ? 1 : 0) || b.t0 - a.t0);
 }
 function card(p) {
   const G = GAMES[p.game], match = !p.mine && !!ME && isMatch(p), fav = !p.mine && S.favs.includes(p.uid), id = esc(p.id);
   const who = `<button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button>`;
-  const av = `<button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, false)}</button>`;
+  const av = `<button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, p.on && !p.mine)}</button>`;
   const tagline = p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : "";
   const head = `<div class="c-head">${av}<div class="who"><div class="nick">${who}${fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : ""}</div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span>·</span><span>${esc(rel(p.t0))}</span>${tagline}</div></div>${badge(p.r)}</div>`;
   const note = noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : "";
   const foot = p.mine
     ? `<div class="c-foot">${needHtml(p)}</div><div class="c-foot">${expHtml(p)}<div class="c-acts"><button class="btn small" data-action="renew" data-id="${id}">${ICON.refresh}${esc(t("renew", durLabel(p.dur)))}</button><button class="iconbtn" data-action="del-post" data-id="${id}" aria-label="${esc(t("del"))}" title="${esc(t("del"))}">${ICON.trash}</button></div></div>`
-    : `<div class="c-foot">${needHtml(p)}${match ? `<span class="match">${ICON.target}${esc(t("match_tag"))}</span>` : ""}<div class="c-acts"><button class="btn primary small" data-action="player" data-id="${id}">${ICON.chat}${esc(t("lv_contact"))}</button></div></div>`;
+    : `<div class="c-foot">${needHtml(p)}${match ? `<span class="match">${ICON.target}${esc(t("match_tag"))}</span>` : ""}<div class="c-acts"><button class="btn small" data-action="player" data-id="${id}">${esc(t("lv_contacts_btn"))}</button><button class="btn primary small" data-action="open-chat" data-id="${id}">${ICON.chat}${esc(t("write"))}</button></div></div>`;
   return `<article class="card${p.mine ? " mine" : ""}" data-id="${id}" style="--g:var(${G.color})">${head}${note}${foot}</article>`;
 }
 function pickCard(x) {
   const p = x.p, id = esc(p.id);
-  return `<div class="pick" style="--g:var(${GAMES[p.game].color})"><div class="pick-h"><button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, false)}</button><div class="who"><div class="nick"><button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button></div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span>${miniRank(p.r)}</div></div></div><div class="pick-f"><span class="why">${esc(x.why.map(w => t("picks_why")[w]).join(" · "))}</span><button class="btn primary small" data-action="player" data-id="${id}">${esc(t("lv_contact"))}</button></div></div>`;
+  return `<div class="pick" style="--g:var(${GAMES[p.game].color})"><div class="pick-h"><button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, false)}</button><div class="who"><div class="nick"><button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button></div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span>${miniRank(p.r)}</div></div></div><div class="pick-f"><span class="why">${esc(x.why.map(w => t("picks_why")[w]).join(" · "))}</span><button class="btn primary small" data-action="open-chat" data-id="${id}">${esc(t("write"))}</button></div></div>`;
 }
 function renderFeed() {
   if (!LV.ready) {
@@ -3209,12 +3211,11 @@ function renderSetup() {
   el.innerHTML = LV.ready ? `<div class="slim">${ICON.target}<span>${esc(t("lv_guest_cta"))}</span><button class="btn primary small" data-action="lv-auth" data-mode="register">${esc(t("lv_signup"))}</button><button class="btn ghost small" data-action="lv-auth">${esc(t("lv_login"))}</button></div>` : "";
 }
 function renderStack() { $("#stackbar").innerHTML = ""; }
-function renderChat() {}
 function renderBell() {}
 function verRow() { return ""; }
 function setView(v) {
-  if (v !== "feed" && v !== "profile") v = "feed";
-  if (v === "profile" && !ME) { authSheet("login"); return; }
+  if (v !== "feed" && v !== "profile" && v !== "chats") v = "feed";
+  if ((v === "profile" || v === "chats") && !ME) { authSheet("login"); return; }
   setView__base(v);
 }
 function closeModal() { AU = null; closeModal__base(); }
@@ -3230,7 +3231,7 @@ function playerSheet(id) {
 <section class="blk"><h4>${esc(t("lv_how_contact"))}</h4>${contact}</section>
 <section class="blk"><h4>${esc(t("p_post"))}</h4>${noteOf(p) ? `<p class="note" style="margin:0">${esc(noteOf(p))}</p>` : ""}<div class="c-foot" style="margin:0">${needHtml(p)}</div><div class="tags">${tags}</div>${expHtml(p)}</section>
 <section class="blk"><h4>${esc(t("p_ranks"))}</h4>${ranks}</section>
-<div class="pacts">${p.mine ? "" : `<button class="btn small${fav ? " on" : ""}" data-action="fav" data-id="${pid}" aria-pressed="${fav}">${ICON.star}${esc(fav ? t("fav_on") : t("fav_add"))}</button>`}<button class="btn small" data-action="share" data-kind="player" data-id="${pid}">${ICON.link}${esc(t("share"))}</button></div>
+<div class="pacts">${p.mine ? "" : `<button class="btn primary small" data-action="open-chat" data-id="${pid}">${ICON.chat}${esc(t("write"))}</button><button class="btn small${fav ? " on" : ""}" data-action="fav" data-id="${pid}" aria-pressed="${fav}">${ICON.star}${esc(fav ? t("fav_on") : t("fav_add"))}</button>`}<button class="btn small" data-action="share" data-kind="player" data-id="${pid}">${ICON.link}${esc(t("share"))}</button></div>
 ${p.mine ? "" : `<div class="actrow"><button class="btn ghost small" data-action="report" data-id="${pid}">${ICON.flag}${esc(t("report"))}</button><button class="btn ghost small danger" data-action="block" data-id="${pid}">${ICON.ban}${esc(t("block"))}</button></div>`}`;
   openSheet(p.nick, body, "");
 }
@@ -3239,7 +3240,7 @@ function shareSheet(kind, id) {
   const link = location.origin + "/#/p/" + p.id;
   openSheet(t("share"), `<div class="field"><span class="lbl">${esc(t("share_title"))}</span>${linkBox(link)}</div><p class="hint" style="margin:0">${esc(t("share_note"))}</p>`, "");
 }
-function whoIs(id) { const p = findPost(id); if (p) return { uid: p.uid, nick: p.nick }; const x = LV.favList.concat(LV.blockList).find(v => v.id === id); return { uid: id, nick: x ? x.nick : "" }; }
+function whoIs(id) { const p = findPost(id); if (p) return { uid: p.uid, nick: p.nick }; const x = LV.favList.concat(LV.blockList).find(v => v.id === id) || S.chats[id]; return { uid: id, nick: x ? x.nick : "" }; }
 async function toggleFav(id) {
   if (!ME) { authSheet("login"); return; }
   const w = whoIs(id), on = !S.favs.includes(w.uid);
@@ -3254,8 +3255,9 @@ async function setBlocked(id, on) {
   const r = await api("POST", "/blocks", { uid: w.uid, on });
   if (!r.ok) { toast(errText(r)); return; }
   setLists(r);
+  if (on && S.active === w.uid) S.active = null;
   if ($("#overlay")) closeModal();
-  renderRail(); renderFeed(); if (S.view === "profile") renderProfile();
+  renderRail(); renderFeed(); renderChat(); if (S.view === "profile") renderProfile();
   if (on) toast(t("blocked_toast", w.nick), { label: t("undo"), fn: () => setBlocked(w.uid, false) }); else toast(t("unblocked_toast", w.nick));
 }
 function reportSheet(id) {
@@ -3317,7 +3319,7 @@ function deletePost(id) {
   toast(t("lv_del_q"), { label: t("del"), fn: async () => {
     const r = await api("DELETE", "/posts/" + encodeURIComponent(id), {});
     if (!r.ok) { toast(errText(r)); return; }
-    S.posts = S.posts.filter(x => x.id !== id); LV.sig = feedSig();
+    S.posts = S.posts.filter(x => x.id !== id); LV.sig = feedSig(); if (r.archive) S.archive = r.archive;
     renderRail(); renderFeed(); if (S.view === "profile") renderProfile();
     toast(t("deleted"));
   } });
@@ -3409,6 +3411,7 @@ async function signedIn(r) {
   if (r.posts && r.posts.length && !S.posts.length) mergeMine(r.posts);
   renderAll();
   toast(t("lv_in"));
+  pollChats();
   if (!S.profile.onboarded) obSheet();
   else if (after === "post") postSheet();
 }
@@ -3435,7 +3438,9 @@ function renderProfile() {
 <div class="field"><div class="pre"><span>${ICON.headset}</span><input class="inp mono" id="pf-dc" aria-label="Discord" autocapitalize="off" autocomplete="off" spellcheck="false" maxlength="40" placeholder="Discord · ${esc(t("dc_ph"))}" value="${esc(pr.dc)}"></div><p class="hint" id="pf-dc-h">${esc(t("dc_hint"))}</p></div>
 <div class="field"><div class="pre"><span>@</span><input class="inp mono" id="pf-tg" aria-label="Telegram" autocapitalize="off" autocomplete="off" spellcheck="false" maxlength="60" placeholder="Telegram · ${esc(t("tg_ph"))}" value="${esc(pr.tg)}"></div><p class="hint" id="pf-tg-h">${esc(t("tg_hint"))}</p></div></div><p class="hint">${esc(t("lv_c_note"))}</p></div></div>`;
   h += `<div class="panel" id="ps-games"><div class="panel-h"><h2 class="sec">${esc(t("my_games"))}</h2><button class="btn primary small" style="margin-left:auto" data-action="game-add">${ICON.plus}${esc(t("add_game"))}</button></div><p class="hint" style="margin-top:-8px">${esc(t("my_games_note"))}</p>${pr.games.length ? `<div class="mygames">${pr.games.map(gameRow).join("")}</div>` : `<p class="hint">${esc(t("no_games"))}</p>`}</div>`;
-  h += `<div class="panel" id="ps-posts"><div class="panel-h"><h2 class="sec">${esc(t("active_posts"))}</h2><button class="btn primary small" style="margin-left:auto" data-action="new-post">${ICON.plus}${esc(t("post_btn"))}</button></div>${mine.length ? '<div class="list">' + mine.map(card).join("") + "</div>" : `<p class="hint">${esc(t("no_posts"))}</p>`}</div>`;
+  h += `<div class="panel" id="ps-posts"><div class="panel-h"><h2 class="sec">${esc(t("active_posts"))}</h2><button class="btn primary small" style="margin-left:auto" data-action="new-post">${ICON.plus}${esc(t("post_btn"))}</button></div>${mine.length ? '<div class="list">' + mine.map(card).join("") + "</div>" : `<p class="hint">${esc(t("no_posts"))}</p>`}
+<div class="field" style="gap:4px"><h2 class="sec">${esc(t("archive"))}</h2><p class="hint">${esc(t("archive_note"))}</p></div>` + (S.archive.length ? "<div>" + S.archive.map((a, i) =>
+    `<div class="arow"><span class="gtag" style="--g:var(${GAMES[a.game].color})"><i></i>${esc(gshort(a.game))}</span><span class="txt"><span>${esc(modeName(a.game, a.mode))} · ${esc(rankText(a.r, true))}</span><span class="sub">${esc(t("reason")[a.reason] || a.reason)} · ${esc(rel(a.ended))}${noteOf(a) ? " · " + esc(noteOf(a).slice(0, 60)) : ""}</span></span><button class="btn small" data-action="repost" data-i="${i}">${ICON.refresh}${esc(t("repost"))}</button></div>`).join("") + "</div>" : `<p class="hint">${esc(t("archive_empty"))}</p>`) + "</div>";
   const favRows = LV.favList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="iconbtn fav" data-action="fav" data-id="${esc(x.id)}" aria-label="${esc(t("fav_on"))}" title="${esc(t("fav_on"))}">${ICON.star}</button></div>`).join("");
   const blkRows = LV.blockList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="btn ghost small" data-action="unblock" data-id="${esc(x.id)}">${esc(t("unblock"))}</button></div>`).join("");
   h += `<div class="panel" id="ps-people"><div class="field"><h2 class="sec">${esc(t("favs_title"))}</h2>${favRows ? `<div>${favRows}</div>` : `<p class="hint">${esc(t("favs_empty"))}</p>`}</div><div class="field"><h2 class="sec">${esc(t("blocked_title"))}</h2>${blkRows ? `<div>${blkRows}</div>` : `<p class="hint">${esc(t("blocked_empty"))}</p>`}</div></div>`;
@@ -3471,6 +3476,110 @@ function deleteAccSheet() {
     if (!r.ok) return errText(r);
     signedOut(false); toast(t("lv_del_acc_done")); return "";
   });
+}
+
+/* ---------- chat ---------- */
+function unreadTotal() { return Object.keys(S.chats).reduce((a, id) => a + (S.blocked.includes(id) ? 0 : (S.chats[id].unread || 0)), 0); }
+function chatSig() { return Object.keys(S.chats).map(id => id + ":" + S.chats[id].t + ":" + S.chats[id].unread + ":" + (S.chats[id].on ? 1 : 0)).join("|"); }
+function renderChat() {
+  const box = $("#chatbox"); if (!box) return;
+  const head = `<div class="ch-head"><h2 class="sec">${esc(t("chats"))}</h2></div>`;
+  if (!ME) { box.innerHTML = head + `<div class="empty" style="margin:16px"><span>${esc(t("lv_chat_guest"))}</span><button class="btn primary small" data-action="lv-auth">${esc(t("lv_login"))}</button></div>`; renderUnread(); return; }
+  const id = S.active, c = id ? S.chats[id] : null;
+  if (!c) {
+    S.active = null;
+    const ids = Object.keys(S.chats).filter(k => !S.blocked.includes(k) && (S.chats[k].t || S.chats[k].msgs.length)).sort((a, b) => S.chats[b].t - S.chats[a].t);
+    box.innerHTML = head + (ids.length ? '<div class="convs">' + ids.map(k => {
+      const x = S.chats[k];
+      return `<button class="conv" data-action="open-chat" data-id="${esc(k)}">${avatar(x.nick, x.on)}<span class="txt"><span class="nick"><span class="n">${esc(x.nick)}</span></span><span class="last">${x.from === ME.id ? esc(t("you_prefix")) : ""}${esc(x.last || "")}</span></span><span class="side"><span class="tm">${x.t ? (Date.now() - x.t < 72000000 ? clock(x.t) : dateStr(x.t)) : ""}</span>${x.unread ? `<span class="badge">${x.unread}</span>` : ""}</span></button>`;
+    }).join("") + "</div>" : `<div class="empty" style="margin:16px">${esc(t("chats_empty"))}</div>`);
+    renderUnread(); return;
+  }
+  const old = $("#msgInput"), draft = old ? old.value : "", focused = old && document.activeElement === old;
+  const post = activePosts().find(x => x.uid === id), pid = post ? esc(post.id) : "";
+  const who = post ? `<button class="avbtn" data-action="player" data-id="${pid}" aria-label="${esc(c.nick)}">${avatar(c.nick, c.on)}</button><div class="who"><div class="nick"><button class="nickbtn" data-action="player" data-id="${pid}"><span class="n">${esc(c.nick)}</span></button></div><div class="meta"><span class="gtag" style="--g:var(${GAMES[post.game].color})"><i></i>${esc(gshort(post.game))}</span>${miniRank(post.r)}</div></div>`
+    : `${avatar(c.nick, c.on)}<div class="who"><div class="nick"><span class="n">${esc(c.nick)}</span></div></div>`;
+  let day = "";
+  const msgs = c.msgs.map(m => {
+    if (m.sys) return `<div class="m sys">${esc(m.text)}</div>`;
+    const d = dateStr(m.t), sep = d !== day ? `<div class="m sys lv-day">${esc(d)}</div>` : ""; day = d;
+    return sep + `<div class="m ${m.me ? "me" : "them"}${m.pending ? " lv-pending" : ""}">${esc(m.text)}<span class="tm">${clock(m.t)}</span></div>`;
+  }).join("");
+  box.innerHTML = `<div class="room"><div class="ch-head"><button class="iconbtn" data-action="close-chat" aria-label="${esc(t("back"))}">${ICON.back}</button>${who}</div>` +
+    `<div class="msgs" id="msgs">${msgs || (c.loaded ? "" : `<div class="m sys">…</div>`)}</div>` +
+    `<div class="qr">${c.msgs.length ? "" : t("quick_r").map(q => `<button type="button" data-action="qr" data-text="${esc(q)}">${esc(q)}</button>`).join("")}<button type="button" class="cbtn" data-action="send-contacts">${ICON.at}${esc(t("my_contacts"))}</button></div>` +
+    `<form class="composer" id="composer" autocomplete="off"><input class="inp" id="msgInput" maxlength="500" placeholder="${esc(t("msg_ph"))}" aria-label="${esc(t("msg_ph"))}"><button class="btn primary" type="submit" aria-label="${esc(t("send"))}">${ICON.send}</button></form></div>`;
+  const ms = $("#msgs"); ms.scrollTop = ms.scrollHeight;
+  const inp = $("#msgInput"); inp.value = draft; if (focused) inp.focus();
+  renderUnread();
+}
+function openChat(id) {
+  if (!ME) { authSheet("login"); return; }
+  const w = whoIs(id); if (!w.uid || w.uid === ME.id) return;
+  if (!S.chats[w.uid]) S.chats[w.uid] = { id: w.uid, nick: w.nick, msgs: [], unread: 0, t: 0, last: "", loaded: false };
+  S.active = w.uid;
+  if (!isWide()) setView("chats"); else renderChat();
+  const i = $("#msgInput"); if (i && isWide()) i.focus();
+  loadChat(w.uid);
+}
+function addMsgs(c, list) {
+  let added = 0;
+  list.forEach(m => {
+    if (c.msgs.some(x => x.id === m.id)) return;
+    if (!m.me && !c.warned && SCAM_RE.test(m.text)) { c.warned = true; c.msgs.push({ sys: true, text: t("scam_warn"), t: m.t }); }
+    c.msgs.push(m); added++;
+  });
+  return added;
+}
+async function loadChat(uid) {
+  const c = S.chats[uid]; if (!c || c.loading) return;
+  c.loading = true;
+  const real = c.msgs.filter(m => m.id && !m.pending), after = real.length ? real[real.length - 1].id : "";
+  const r = await api("GET", "/chats/" + encodeURIComponent(uid) + (after ? "?after=" + encodeURIComponent(after) : ""));
+  c.loading = false;
+  if (!r.ok) return;
+  const n = addMsgs(c, r.msgs), first = !c.loaded;
+  c.loaded = true; c.unread = 0;
+  if (S.active === uid && (n || first)) renderChat(); else renderUnread();
+}
+async function sendMsg(text) {
+  const id = S.active, c = id ? S.chats[id] : null; text = String(text || "").trim().slice(0, 500);
+  if (!c || !text) return;
+  const tmp = { id: "tmp" + Date.now(), me: true, text, t: Date.now(), pending: true };
+  c.msgs.push(tmp); renderChat();
+  if (isWide()) { const i = $("#msgInput"); if (i) i.focus(); }
+  const r = await api("POST", "/chats/" + encodeURIComponent(id), { text });
+  const k = c.msgs.indexOf(tmp);
+  if (!r.ok) {
+    if (k >= 0) c.msgs.splice(k, 1);
+    toast(r.error === "network" || r.error === "server" ? t("lv_not_sent") : errText(r));
+    if (S.active === id) { renderChat(); const i = $("#msgInput"); if (i && !i.value) i.value = text; }
+    return;
+  }
+  if (k >= 0) c.msgs[k] = r.msg;
+  c.last = text.slice(0, 80); c.t = r.msg.t; c.from = ME.id;
+  if (S.active === id) renderChat();
+}
+async function pollChats() {
+  if (!ME || document.hidden) return;
+  const now = Date.now(), beat = now - (LV.beatAt || 0) > 120000;
+  LV.chatAt = now; if (beat) LV.beatAt = now;
+  const r = await api("GET", "/chats" + (beat ? "?beat=1" : ""));
+  if (!r.ok) { if (r.status === 401) signedOut(true); return; }
+  const before = chatSig();
+  r.chats.forEach(x => {
+    const c = S.chats[x.id] || (S.chats[x.id] = { id: x.id, nick: x.nick, msgs: [], unread: 0, t: 0, last: "", loaded: false });
+    const fresh = x.t > c.t;
+    c.nick = x.nick; c.last = x.last; c.from = x.from; c.on = x.on; if (fresh) c.t = x.t;
+    if (S.active === x.id && chatVisible(x.id)) { if (fresh || x.unread) loadChat(x.id); }
+    else c.unread = x.unread;
+  });
+  if (before !== chatSig()) { if (!S.active && (isWide() || S.view === "chats")) renderChat(); else renderUnread(); }
+}
+function chatTick() {
+  if (!ME || document.hidden) return;
+  const open = isWide() || S.view === "chats", every = S.active && open ? 5000 : open ? 12000 : 25000;
+  if (Date.now() - (LV.chatAt || 0) >= every) pollChats();
 }
 
 /* ---------- ticker ---------- */
@@ -3509,7 +3618,7 @@ document.addEventListener("click", e => {
   const fn = H[a.dataset.action];
   if (fn) { e.preventDefault(); e.stopPropagation(); fn(); }
 }, true);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && LV.ready && Date.now() - LV.feedAt > 30000) softRefresh(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && LV.ready && Date.now() - LV.feedAt > 30000) softRefresh(); if (!document.hidden) chatTick(); });
 window.addEventListener("hashchange", () => { if (LV.ready) openDeepLink(); });
 async function start() {
   const [me, okFeed] = await Promise.all([api("GET", "/me"), refreshFeed(true)]);
@@ -3523,6 +3632,7 @@ async function start() {
   if (!okFeed) { LV.loadErr = true; }
   lastActive = activePosts().length;
   renderAll(); measure();
+  if (ME) pollChats();
   if (LV.ready) openDeepLink();
   if (ME && !S.profile.onboarded && !S.setupHidden && !$("#overlay")) setTimeout(() => { if (!$("#overlay")) obSheet(); }, 500);
 }
@@ -3532,6 +3642,7 @@ renderAll();
 measure();
 try { document.fonts && document.fonts.ready.then(measure); } catch (e) {}
 setInterval(tick, 10000);
+setInterval(chatTick, 2500);
 start();
 })();
 

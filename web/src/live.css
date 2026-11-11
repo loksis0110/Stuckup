@@ -1,9 +1,9 @@
 /* ---- live build: stage 1 (accounts, profile, shared feed) ---- */
-[data-nav="teams"], [data-nav="chats"], [data-nav="admin"], #bell, .col-chat, #stackbar { display: none !important; }
-[data-q="online"], [data-q="verified"], [data-pd="10080"] { display: none !important; }
+[data-nav="teams"], [data-nav="admin"], #bell, #stackbar { display: none !important; }
+[data-q="verified"], [data-pd="10080"] { display: none !important; }
 .field:has(> .lbl > .pro), .field:has(> #ob-nick), label.check:has(#pf2-showc) { display: none !important; }
 .demo-line:empty { display: none; }
-nav.bottom .in { grid-template-columns: repeat(3, 1fr); }
+nav.bottom .in { grid-template-columns: repeat(4, 1fr); }
 .me-btn.guest { display: flex; }
 .lv-in { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 10px; font-size: 13.5px; font-weight: 600; color: var(--fg); white-space: nowrap; }
 .me-btn.guest:hover .lv-in { border-color: var(--accent-line); }
@@ -29,11 +29,5 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .lv-id b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; }
 .lv-id span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .lv-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
-@media (min-width: 820px) {
-  .grid { grid-template-columns: minmax(0, 1fr); }
-  .col-feed, .col-page { max-width: 860px; }
-}
-@media (min-width: 1200px) {
-  .grid { grid-template-columns: 268px minmax(0, 1fr); }
-  .col-page { grid-column: 1 / 3; }
-}
+.m.lv-pending { opacity: .55; }
+.m.sys.lv-day { font-size: 11.5px; }
