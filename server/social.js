@@ -48,7 +48,9 @@ module.exports = function makeSocial(ctx) {
     return { body: { token, url: "https://t.me/" + BOT() + "?start=" + (uid ? "link_" : "login_") + token } };
   }
   async function tgPoll(req) {
-    const token = String(req.json.token || ""), rec = await db.get("tgl", token);
+    const token = String(req.json.token || "");
+    await tgPump();
+    const rec = await db.get("tgl", token);
     if (!rec || Date.now() - rec.t > TEN_MIN) throw new Http(400, "code_expired");
     if (rec.state === "wait") return { body: { wait: true } };
     await db.del("tgl", token);
@@ -59,7 +61,25 @@ module.exports = function makeSocial(ctx) {
   async function tgHook(req) {
     const secret = process.env.TG_HOOK_SECRET;
     if (!secret || !A.safeEq(req.headers["x-telegram-bot-api-secret-token"] || "", secret)) throw new Http(403, "forbidden");
-    const m = req.json.message; if (!m || !m.chat || m.chat.type !== "private" || typeof m.text !== "string") return { body: { ok: true } };
+    return tgMessage(req.json.message);
+  }
+  // Pulls new bot messages. Runs while somebody is waiting for a Telegram confirmation on the site.
+  let pumpAt = 0;
+  async function tgPump() {
+    const tok = process.env.TELEGRAM_BOT_TOKEN, now = Date.now();
+    if (!tok || now - pumpAt < 1200) return;
+    pumpAt = now;
+    try {
+      const off = await db.get("sys", "tgoff");
+      const r = await http("https://api.telegram.org/bot" + tok + "/getUpdates?timeout=0&limit=50&offset=" + ((off && off.v) || 0) + "&allowed_updates=" + encodeURIComponent('["message"]')), j = await r.json();
+      if (!j.ok) { console.error("telegram getUpdates:", String(j.description).slice(0, 200)); return; }
+      let last = 0;
+      for (const up of j.result || []) { last = up.update_id; try { await tgMessage(up.message); } catch (e) { console.error("telegram update:", e.message); } }
+      if (last) await db.put("sys", "tgoff", { v: last + 1 });
+    } catch (e) { console.error("telegram pump:", e.message); }
+  }
+  async function tgMessage(m) {
+    if (!m || !m.chat || m.chat.type !== "private" || typeof m.text !== "string") return { body: { ok: true } };
     const from = m.from || {}, lang = String(from.language_code || "ru").startsWith("ru") ? "ru" : "en", T = TEXT[lang], name = from.username || from.first_name || "telegram";
     const st = /^\/start (login|link)_([A-Za-z0-9_-]{8,32})$/.exec(m.text.trim());
     if (st) {
@@ -147,12 +167,22 @@ module.exports = function makeSocial(ctx) {
     const rt = Number(j.rank_tier); if (!rt) return null;
     return V.rank("medal", { t: Math.floor(rt / 10) - 1, s: rt % 10 || 1 });
   }
-  async function faceitPlayer(nick) {
-    const r = await http("https://open.faceit.com/data/v4/players?nickname=" + encodeURIComponent(nick), { headers: { Authorization: "Bearer " + process.env.FACEIT_API_KEY } });
+  // FACEIT account that belongs to a Steam account (FACEIT stores the Steam ID of every CS2 player)
+  async function faceitPlayer(steamId) {
+    const r = await http("https://open.faceit.com/data/v4/players?game=cs2&game_player_id=" + encodeURIComponent(steamId), { headers: { Authorization: "Bearer " + process.env.FACEIT_API_KEY } });
     if (r.status === 404) return null;
     if (!r.ok) throw new Http(502, "link_fail");
     const j = await r.json(), g = (j.games || {}).cs2;
     return { pid: j.player_id, nick: j.nickname, elo: g ? Number(g.faceit_elo) : 0 };
+  }
+  async function faceitFromSteam(u) {
+    if (!u.steam || !config().faceit) return false;
+    const p = await faceitPlayer(u.steam.id); if (!p || !p.elo) return false;
+    const idx = await db.get("x", "faceit:" + p.pid); if (idx && idx.uid !== u.id) return false;
+    if (u.faceit && u.faceit.pid !== p.pid) await db.del("x", "faceit:" + u.faceit.pid);
+    u.faceit = { pid: p.pid, nick: p.nick }; await db.put("x", "faceit:" + p.pid, { uid: u.id });
+    setVerified(u, "cs2", V.rank("faceit", { elo: p.elo }), { src: "faceit", nick: p.nick });
+    return true;
   }
   async function steamStart(req) {
     await need(req);
@@ -173,37 +203,23 @@ module.exports = function makeSocial(ctx) {
       u.steam = { id: m[1] }; await db.put("x", "steam:" + m[1], { uid: u.id });
       let rank = null; try { rank = await dotaRank(m[1]); } catch (e) { console.error("opendota:", e.message); }
       if (rank) setVerified(u, "dota", rank, { src: "steam" });
+      let fc = false; try { fc = await faceitFromSteam(u); } catch (e) { console.error("faceit:", e.message); }
       await db.put("u", u.id, u);
-      return { redirect: rank ? "/#/linked/steam" : "/#/linked/steam_norank" };
+      return { redirect: rank || fc ? "/#/linked/steam" : "/#/linked/steam_norank" };
     } catch (e) { if (e instanceof Http) return { redirect: "/#/err/" + e.code }; console.error("steam:", e.message); return { redirect: "/#/err/link_fail" }; }
-  }
-  async function faceitLink(req) {
-    const u = await need(req);
-    if (!config().faceit) throw new Http(503, "link_off");
-    await limit("fc:" + u.id, 10, 3600000);
-    const p = await faceitPlayer(String(req.json.nick || "").trim().slice(0, 40));
-    if (!p) throw new Http(404, "faceit_none");
-    if (!p.elo) throw new Http(400, "faceit_nocs2");
-    const idx = await db.get("x", "faceit:" + p.pid);
-    if (idx && idx.uid !== u.id) throw new Http(409, "link_taken");
-    if (u.faceit && u.faceit.pid !== p.pid) await db.del("x", "faceit:" + u.faceit.pid);
-    u.faceit = { pid: p.pid, nick: p.nick }; await db.put("x", "faceit:" + p.pid, { uid: u.id });
-    setVerified(u, "cs2", V.rank("faceit", { elo: p.elo }), { src: "faceit", nick: p.nick });
-    await db.put("u", u.id, u);
-    return { body: { user: me(u) } };
   }
   async function refresh(req) {
     const u = await need(req);
     await limit("vref:" + u.id, 6, 3600000);
     let changed = false;
     if (u.steam) { try { const r = await dotaRank(u.steam.id); if (r) { setVerified(u, "dota", r, { src: "steam" }); changed = true; } } catch (e) {} }
-    if (u.faceit && config().faceit) { try { const p = await faceitPlayer(u.faceit.nick); if (p && p.pid === u.faceit.pid && p.elo) { setVerified(u, "cs2", V.rank("faceit", { elo: p.elo }), { src: "faceit", nick: p.nick }); changed = true; } } catch (e) {} }
+    try { if (await faceitFromSteam(u)) changed = true; } catch (e) {}
     if (changed) await db.put("u", u.id, u);
     return { body: { user: me(u) } };
   }
   async function unlink(req, what) {
     const u = await need(req);
-    if (what === "steam" && u.steam) { await db.del("x", "steam:" + u.steam.id); delete u.steam; if (u.ver) delete u.ver.medal; }
+    if (what === "steam" && u.steam) { await db.del("x", "steam:" + u.steam.id); delete u.steam; if (u.ver) delete u.ver.medal; what = "faceit"; }
     if (what === "faceit" && u.faceit) { await db.del("x", "faceit:" + u.faceit.pid); delete u.faceit; if (u.ver) delete u.ver.faceit; }
     await db.put("u", u.id, u);
     return { body: { user: me(u) } };
@@ -226,9 +242,15 @@ module.exports = function makeSocial(ctx) {
     ["GET", /^\/api\/auth\/vk\/cb$/, vkCallback],
     ["GET", /^\/api\/link\/steam\/start$/, steamStart],
     ["GET", /^\/api\/link\/steam\/cb$/, steamCallback],
-    ["POST", /^\/api\/link\/faceit$/, faceitLink],
     ["POST", /^\/api\/link\/refresh$/, refresh],
     ["DELETE", /^\/api\/link\/(steam|faceit)$/, unlink]
   ];
-  return { routes, config, push, pushMessage, userGone };
+  // deploy-time diagnostics: can the function reach Telegram?
+  async function tgCheck() {
+    const tok = process.env.TELEGRAM_BOT_TOKEN; if (!tok) return { ok: false, err: "no token" };
+    const t0 = Date.now();
+    try { const r = await http("https://api.telegram.org/bot" + tok + "/getMe"), j = await r.json(); return { ok: !!j.ok, ms: Date.now() - t0, bot: j.result && j.result.username }; }
+    catch (e) { return { ok: false, ms: Date.now() - t0, err: String(e.message).slice(0, 120) }; }
+  }
+  return { routes, config, push, pushMessage, userGone, tgCheck };
 };

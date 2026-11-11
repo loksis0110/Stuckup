@@ -128,7 +128,8 @@ say "health: $(cat "$WORK/health.json")"
 if [ -n "${SMTP_HOST:-}" ]; then say "mail test: $(curl -s --max-time 20 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d '{}' "https://$DOMAIN/api/health/mail")"; fi
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
   say "telegram webhook state before: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo" | jq -c '.result | {pending_update_count, last_error_date, last_error_message, url: (.url | sub("https://";""))}' 2>/dev/null)"
-  say "telegram webhook: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" --data-urlencode "url=https://$DOMAIN/api/tg/hook" --data-urlencode "secret_token=$TG_HOOK_SECRET" --data-urlencode 'allowed_updates=["message"]' | head -c 200)"
+  say "telegram: webhook off (updates are pulled) $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/deleteWebhook" | head -c 120)"
+  say "telegram from the function: $(curl -s --max-time 25 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d '{"what":"tg"}' "https://$DOMAIN/api/health/mail")"
   say "telegram bot: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe" | jq -r '.result.username // .description' 2>/dev/null)"
 fi
 say "7/7 smoke test"

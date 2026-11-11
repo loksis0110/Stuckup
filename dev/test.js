@@ -283,7 +283,7 @@ test("telegram sign-in, notifications, rank verification (mocked services)", asy
     if (url.includes("api.telegram.org")) { sent.push(JSON.parse(opt.body)); return res({ ok: true }); }
     if (url.includes("steamcommunity.com/openid")) return res("ns:http://specs.openid.net/auth/2.0\nis_valid:true\n");
     if (url.includes("api.opendota.com")) return res({ rank_tier: 54 });
-    if (url.includes("open.faceit.com")) return url.includes("nickname=Ghost") ? res({}, 404) : res({ player_id: "pid-1", nickname: "KaitoFC", games: { cs2: { faceit_elo: 2140, skill_level: 10 } } });
+    if (url.includes("open.faceit.com")) return res({ player_id: "pid-1", nickname: "KaitoFC", games: { cs2: { faceit_elo: 2140, skill_level: 10 } } });
     throw new Error("unexpected fetch " + url);
   };
   try {
@@ -321,11 +321,10 @@ test("telegram sign-in, notifications, rank verification (mocked services)", asy
     await b("PUT", "/api/me", { profile: { dc: "mail.user", ranks: { dota: { medal: { t: 7 } } } } }); // cannot overwrite a verified rank by hand
     meB = (await b("GET", "/api/me")).json.user; assert.equal(meB.profile.ranks.dota.medal.t, 4);
     const pd = (await b("POST", "/api/posts", { game: "dota", mode: "ranked", r: { sys: "medal", t: 7 }, roles: ["pos1"], dur: 60 })).json.post; assert.equal(pd.ver, true); assert.equal(pd.r.t, 4);
-    // faceit
-    assert.equal((await b("POST", "/api/link/faceit", { nick: "Ghost" })).json.error, "faceit_none");
-    const fc = (await b("POST", "/api/link/faceit", { nick: "kaitofc" })).json.user; assert.equal(fc.faceit, "KaitoFC"); assert.equal(fc.profile.ranks.cs2.faceit.elo, 2140);
-    assert.equal((await a("POST", "/api/link/faceit", { nick: "kaitofc" })).json.error, "link_taken");
-    assert.equal((await b("DELETE", "/api/link/faceit", {})).json.user.faceit, null);
+    // faceit comes through the linked Steam account: nobody can claim someone else's nickname
+    meB = (await b("GET", "/api/me")).json.user; assert.equal(meB.faceit, "KaitoFC"); assert.equal(meB.profile.ranks.cs2.faceit.elo, 2140); assert.equal(meB.ver.faceit.src, "faceit");
+    assert.equal((await b("POST", "/api/link/faceit", { nick: "donk666" })).status, 405); // linking by nickname no longer exists
+    assert.equal((await b("DELETE", "/api/link/steam", {})).json.user.faceit, null);
     // deleting a password-less account asks for the nickname
     assert.equal((await a("DELETE", "/api/me", { confirm: "wrong" })).json.error, "bad_password");
     assert.equal((await a("DELETE", "/api/me", { confirm: "TgKaito" })).status, 200);
