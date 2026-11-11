@@ -117,4 +117,40 @@ say "health: $(cat "$WORK/health.json")"
 
 say "7/7 smoke test"
 SMOKE_KEY="$SMOKE_KEY" node dev/smoke.js "https://$DOMAIN"
+
+say "8/8 custom domain (problems here do not fail the deploy)"
+set +e
+SITE_DOMAIN=stuckup.ru; ZONE=stuckup-ru; CERT=stuckup-ru
+domain_setup() {
+  yc dns zone get "$ZONE" >/dev/null 2>&1 || yc dns zone create --name "$ZONE" --zone "$SITE_DOMAIN." --public-visibility >/dev/null || { say "dns zone create failed"; return 1; }
+  rec() { # name ttl type value : replace the record set
+    local cur; cur=$(yc dns zone list-records --name "$ZONE" --format json | jq -r --arg n "$1" --arg t "$3" '.[] | select(.name==$n and .type==$t) | .data[]' 2>/dev/null)
+    [ "$cur" = "$4" ] && return 0
+    if [ -n "$cur" ]; then while read -r v; do yc dns zone delete-records --name "$ZONE" --record "$1 $2 $3 $v" >/dev/null; done <<< "$cur"; fi
+    yc dns zone add-records --name "$ZONE" --record "$1 $2 $3 $4" >/dev/null && say "dns: $1 $3 -> $4"
+  }
+  rec "$SITE_DOMAIN." 300 ANAME "$DOMAIN."
+  rec "www.$SITE_DOMAIN." 300 CNAME "$DOMAIN."
+  yc certificate-manager certificate get --name "$CERT" >/dev/null 2>&1 || yc certificate-manager certificate request --name "$CERT" --domains "$SITE_DOMAIN,www.$SITE_DOMAIN" --challenge dns >/dev/null || { say "certificate request failed"; return 1; }
+  yc certificate-manager certificate get --name "$CERT" --full --format json > "$WORK/cert.json"
+  CERT_ID=$(jq -r .id "$WORK/cert.json"); CERT_ST=$(jq -r .status "$WORK/cert.json")
+  say "certificate $CERT_ID: $CERT_ST"
+  jq -r '.challenges[]? | select(.dns_challenge != null) | .dns_challenge | select(.type=="CNAME") | "\(.name) \(.value)"' "$WORK/cert.json" | while read -r n v; do
+    [ -n "$n" ] && rec "${n%.}." 300 CNAME "${v%.}."
+  done
+  if [ "$CERT_ST" != "ISSUED" ]; then
+    say "certificate is not issued yet: it will be once the domain's NS point to ns1.yandexcloud.net / ns2.yandexcloud.net; then re-run the deploy"
+    say "current NS of $SITE_DOMAIN: $(dig +short NS "$SITE_DOMAIN" 2>/dev/null | tr '\n' ' ')"
+    return 0
+  fi
+  local have; have=$(yc serverless api-gateway get "$NAME" --format json | jq -r '.attached_domains[]?.domain' 2>/dev/null)
+  for d in "$SITE_DOMAIN" "www.$SITE_DOMAIN"; do
+    if echo "$have" | grep -qx "$d"; then say "domain attached: $d"; else
+      yc serverless api-gateway add-domain --name "$NAME" --domain "$d" --certificate-id "$CERT_ID" >/dev/null && say "domain attached now: $d" || { say "add-domain failed for $d"; yc serverless api-gateway add-domain --help 2>&1 | head -30; }
+    fi
+  done
+  say "check: $(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$SITE_DOMAIN/api/health")"
+}
+domain_setup 2>&1 | grep -v 'PRIVATE KEY'
+set -e
 say "DEPLOY OK https://$DOMAIN"
