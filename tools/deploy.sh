@@ -172,6 +172,11 @@ domain_setup() {
   }
   rec "$SITE_DOMAIN." 300 ANAME "$DOMAIN."
   rec "www.$SITE_DOMAIN." 300 CNAME "$DOMAIN."
+  # site verification records (search engines); added once, other TXT records are left alone
+  for V in "google-site-verification=a7s506NVngEIKuFJg9BIefbxJUG8cJEg1djQTl8A0D4"; do
+    if yc dns zone list-records --name "$ZONE" --format json | jq -e --arg v "$V" '.[] | select(.type=="TXT") | .data[] | select(contains($v))' >/dev/null 2>&1; then say "dns: TXT ${V%%=*} present"
+    else yc dns zone add-records --name "$ZONE" --record "$SITE_DOMAIN. 300 TXT $V" >/dev/null 2>"$WORK/err.txt" && say "dns: TXT ${V%%=*} added" || say "dns: TXT add failed: $(head -c 300 "$WORK/err.txt")"; fi
+  done
   yc certificate-manager certificate get --name "$CERT" >/dev/null 2>&1 || yc certificate-manager certificate request --name "$CERT" --domains "$SITE_DOMAIN,www.$SITE_DOMAIN" --challenge dns >/dev/null || { say "certificate request failed"; return 1; }
   yc certificate-manager certificate get --name "$CERT" --full --format json > "$WORK/cert.json"
   CERT_ID=$(jq -r .id "$WORK/cert.json"); CERT_ST=$(jq -r .status "$WORK/cert.json")
