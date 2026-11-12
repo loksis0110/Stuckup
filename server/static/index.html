@@ -900,6 +900,43 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .lv-subrow { display: flex; align-items: center; gap: 10px; }
 .lv-subrow .sp { flex: 1; }
 
+/* chat media */
+.composer { align-items: center; }
+.composer .lv-mb { flex: none; width: 38px; height: 38px; }
+.composer .lv-mb svg.i, .lv-voice svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.m.lv-media { padding: 6px; display: grid; gap: 6px; max-width: min(78%, 320px); position: relative; }
+.m.lv-media .tm { justify-self: end; padding: 0 4px; }
+.lv-ph { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; }
+.lv-ph img { display: block; width: 100%; height: auto; max-height: 360px; object-fit: contain; border-radius: 10px; background: var(--line); }
+.lv-vid { display: block; width: 100%; max-height: 360px; border-radius: 10px; background: #000; }
+.lv-voice { display: flex; align-items: center; gap: 8px; min-width: 220px; }
+.lv-voice audio { height: 36px; flex: 1; min-width: 0; }
+.lv-voice svg.i { width: 18px; height: 18px; flex: none; opacity: .7; }
+.lv-dur { font: 500 11.5px var(--f-mono); color: var(--muted); }
+.m.lv-circle { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0; }
+.lv-circ { position: relative; width: 200px; height: 200px; border-radius: 50%; overflow: hidden; padding: 0; border: 2px solid var(--line-2); background: #000; cursor: pointer; display: block; }
+.lv-circ video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lv-circ.on { border-color: var(--accent); }
+.lv-circ .lv-dur { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); background: rgba(0,0,0,.6); color: #fff; border-radius: 8px; padding: 1px 6px; }
+.lv-cap { padding: 0 4px; overflow-wrap: anywhere; }
+.lv-up { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.lv-gone { font-size: 13px; color: var(--muted); font-style: italic; padding: 4px; }
+.lv-flag { position: absolute; top: 6px; right: -30px; width: 26px; height: 26px; display: grid; place-items: center; border: 0; background: none; color: var(--faint); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.m.lv-media:hover .lv-flag, .lv-flag:focus-visible { opacity: 1; }
+@media (hover: none) { .lv-flag { opacity: .6; } }
+.lv-flag svg.i { width: 14px; height: 14px; }
+.lv-rec { display: flex; align-items: center; gap: 8px; flex: 1; font-size: 14px; }
+.lv-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4d4f; animation: lvBlink 1s infinite; }
+@keyframes lvBlink { 50% { opacity: .3; } }
+.lv-cwrap { position: relative; width: min(280px, 70vw); aspect-ratio: 1; margin: 4px auto 0; }
+.lv-cprev { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #000; transform: scaleX(-1); display: block; }
+.lv-cring { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-90deg); pointer-events: none; }
+.lv-cring circle { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 0 100; stroke-linecap: round; }
+.composer .inp { flex: 1; min-width: 0; }
+.composer { gap: 4px; }
+.lv-glinks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.lv-glinks a { color: var(--fg-2); }
+
 @media (max-width: 639px) {
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .slot, .slot .av { width: 38px; height: 38px; border-radius: 10px; }
@@ -3674,7 +3711,7 @@ function deleteAccSheet() {
 /* ---------- chat ---------- */
 function unreadTotal() { return Object.keys(S.chats).reduce((a, id) => a + (S.blocked.includes(id) ? 0 : (S.chats[id].unread || 0)), 0); }
 function chatSig() { return Object.keys(S.chats).map(id => id + ":" + S.chats[id].t + ":" + S.chats[id].unread + ":" + (S.chats[id].on ? 1 : 0)).join("|"); }
-function renderChat() {
+function renderChatCore() {
   const box = $("#chatbox"); if (!box) return;
   const head = `<div class="ch-head"><h2 class="sec">${esc(t("chats"))}</h2></div>`;
   if (!ME) { box.innerHTML = head + `<div class="empty" style="margin:16px"><span>${esc(t("lv_chat_guest"))}</span><button class="btn primary small" data-action="lv-auth">${esc(t("lv_login"))}</button></div>`; renderUnread(); return; }
@@ -3696,12 +3733,12 @@ function renderChat() {
   const msgs = c.msgs.map(m => {
     if (m.sys) return `<div class="m sys">${esc(m.text)}</div>`;
     const d = dateStr(m.t), sep = d !== day ? `<div class="m sys lv-day">${esc(d)}</div>` : ""; day = d;
-    return sep + `<div class="m ${m.me ? "me" : "them"}${m.pending ? " lv-pending" : ""}">${esc(m.text)}<span class="tm">${clock(m.t)}</span></div>`;
+    return sep + `<div class="m ${m.me ? "me" : "them"}${m.pending ? " lv-pending" : ""}${m.media ? " lv-media lv-" + m.media.kind : ""}" data-mid="${esc(m.id)}">${msgBody(m)}<span class="tm">${clock(m.t)}</span></div>`;
   }).join("");
   box.innerHTML = `<div class="room"><div class="ch-head"><button class="iconbtn" data-action="close-chat" aria-label="${esc(t("back"))}">${ICON.back}</button>${who}</div>` +
     `<div class="msgs" id="msgs">${msgs || (c.loaded ? "" : `<div class="m sys">…</div>`)}</div>` +
     `<div class="qr">${c.msgs.length ? "" : t("quick_r").map(q => `<button type="button" data-action="qr" data-text="${esc(q)}">${esc(q)}</button>`).join("")}<button type="button" class="cbtn" data-action="send-contacts">${ICON.at}${esc(t("my_contacts"))}</button></div>` +
-    `<form class="composer" id="composer" autocomplete="off"><input class="inp" id="msgInput" maxlength="500" placeholder="${esc(t("msg_ph"))}" aria-label="${esc(t("msg_ph"))}"><button class="btn primary" type="submit" aria-label="${esc(t("send"))}">${ICON.send}</button></form></div>`;
+    `<form class="composer" id="composer" autocomplete="off">${mediaButtons()}<input class="inp" id="msgInput" maxlength="500" placeholder="${esc(t("msg_ph"))}" aria-label="${esc(t("msg_ph"))}"><button class="btn primary" type="submit" aria-label="${esc(t("send"))}">${ICON.send}</button></form></div>`;
   const ms = $("#msgs"); ms.scrollTop = ms.scrollHeight;
   const inp = $("#msgInput"); inp.value = draft; if (focused) inp.focus();
   renderUnread();
@@ -3769,7 +3806,7 @@ async function pollChats() {
     if (S.active === x.id && chatVisible(x.id)) { if (fresh || x.unread) loadChat(x.id); }
     else c.unread = x.unread;
   });
-  if (before !== chatSig()) { if (!S.active && (isWide() || S.view === "chats")) renderChat(); else renderUnread(); }
+  if (before !== chatSig()) { uiState(); if (!S.active && (isWide() || S.view === "chats")) renderChat(); else renderUnread(); }
 }
 function chatTick() {
   teamsDraw();
@@ -4216,6 +4253,185 @@ document.addEventListener("change", e => { const el = e.target.closest && e.targ
 document.addEventListener("click", e => { const a = e.target.closest("[data-action]"); if (!a) return;
   if (a.dataset.action === "lv-follow") { e.stopPropagation(); if (!ME) authSheet("login"); else followSheet(a.dataset.g); }
   if (a.dataset.action === "lv-unfollow") { e.stopPropagation(); follow(a.dataset.g, false); } }, true);
+
+/* ---------- chat media: photos, videos, voice messages, round videos ---------- */
+Object.assign(T.ru, { lv_attach: "Фото или видео", lv_voice: "Голосовое", lv_circle: "Кружок", lv_uploading: "Отправляется…", lv_media_gone: "Файл удалён", lv_up_fail: "Не получилось отправить файл. Попробуйте ещё раз.",
+  lv_rec_cancel: "Отмена", lv_rec_send: "Отправить", lv_rec: "Запись", lv_circle_t: "Кружок", lv_circle_start: "Начать запись", lv_circle_stop: "Стоп", lv_circle_again: "Переснять", lv_circle_hint: "До 60 секунд. Смотрите в камеру.",
+  lv_no_mic: "Нет доступа к микрофону. Разрешите его в настройках браузера.", lv_no_cam: "Нет доступа к камере. Разрешите её в настройках браузера.", lv_no_rec: "Этот браузер не умеет записывать. Попробуйте Chrome или Safari.",
+  lv_too_big: mb => "Файл больше " + mb + " МБ", lv_report_msg: "Пожаловаться на сообщение" });
+Object.assign(T.en, { lv_attach: "Photo or video", lv_voice: "Voice", lv_circle: "Round video", lv_uploading: "Sending…", lv_media_gone: "File removed", lv_up_fail: "Could not send the file. Please try again.",
+  lv_rec_cancel: "Cancel", lv_rec_send: "Send", lv_rec: "Recording", lv_circle_t: "Round video", lv_circle_start: "Start recording", lv_circle_stop: "Stop", lv_circle_again: "Record again", lv_circle_hint: "Up to 60 seconds. Look at the camera.",
+  lv_no_mic: "No access to the microphone. Allow it in the browser settings.", lv_no_cam: "No access to the camera. Allow it in the browser settings.", lv_no_rec: "This browser cannot record. Try Chrome or Safari.",
+  lv_too_big: mb => "The file is larger than " + mb + " MB", lv_report_msg: "Report message" });
+Object.assign(T.ru.lv_err, { media_off: "Отправка файлов пока недоступна.", bad_media: "Такой файл отправить нельзя.", media_big: "Файл слишком большой.", media_long: "Запись слишком длинная.", upload_gone: "Загрузка устарела, отправьте файл ещё раз.", gone: "Уже удалено." });
+Object.assign(T.en.lv_err, { media_off: "Sending files is not available yet.", bad_media: "This file cannot be sent.", media_big: "The file is too large.", media_long: "The recording is too long.", upload_gone: "The upload expired, send the file again.", gone: "Already removed." });
+
+const MIC_SVG = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const CLIP_SVG = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>';
+const CIRCLE_SVG = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/></svg>';
+const MB_ = 1048576, LIMITS = { photo: 10, voice: 5, video: 50, circle: 20 };
+let REC = null;   // active voice recording { rec, stream, chunks, t0, timer, cancel }
+
+const fmtDur = s => { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+function mediaButtons() {
+  return `<input type="file" id="mediaFile" accept="image/*,video/*" hidden><button type="button" class="iconbtn lv-mb" data-action="lv-attach" aria-label="${esc(t("lv_attach"))}" title="${esc(t("lv_attach"))}">${CLIP_SVG}</button>`;
+}
+function msgBody(m) {
+  const md = m.media; if (!md) return esc(m.text);
+  const cap = m.text ? `<span class="lv-cap">${esc(m.text)}</span>` : "", u = md.url ? esc(md.url) : "";
+  let h;
+  if (!u) h = `<span class="lv-gone">${esc(t("lv_media_gone"))}</span>`;
+  else if (md.kind === "photo") h = `<button type="button" class="lv-ph" data-action="lv-photo" data-src="${u}"><img src="${u}" alt="" loading="lazy"${md.w && md.h ? ` width="${md.w}" height="${md.h}"` : ""}></button>`;
+  else if (md.kind === "voice") h = `<span class="lv-voice">${MIC_SVG}<audio controls preload="none" src="${u}"></audio>${md.dur ? `<span class="lv-dur">${fmtDur(md.dur)}</span>` : ""}</span>`;
+  else if (md.kind === "video") h = `<video class="lv-vid" controls preload="metadata" playsinline src="${u}"></video>`;
+  else h = `<button type="button" class="lv-circ" data-action="lv-circle-play" aria-label="${esc(t("lv_circle"))}"><video playsinline preload="metadata" src="${u}"></video>${md.dur ? `<span class="lv-dur">${fmtDur(md.dur)}</span>` : ""}</button>`;
+  const flag = !m.me && !m.pending && md.url ? `<button type="button" class="lv-flag" data-action="lv-report-msg" data-mid="${esc(m.id)}" aria-label="${esc(t("lv_report_msg"))}" title="${esc(t("lv_report_msg"))}">${ICON.flag}</button>` : "";
+  return h + cap + (m.pending ? `<span class="lv-up">${esc(t("lv_uploading"))}</span>` : "") + flag;
+}
+function mediaPlaying() { return $$("#msgs audio, #msgs video").some(x => !x.paused && !x.ended); }
+function renderChat() {
+  // do not interrupt a voice message or a video that is playing; redraw when it stops
+  if (S.active && mediaPlaying()) { LV.chatDirty = true; return; }
+  LV.chatDirty = false;
+  renderChatCore();
+  const f = $("#composer"); if (!f) return;
+  if (!f.querySelector('[data-action="lv-voice"]')) {
+    const send = f.querySelector('button[type="submit"]');
+    (send || f).insertAdjacentHTML(send ? "beforebegin" : "beforeend", `<button type="button" class="iconbtn lv-mb" data-action="lv-circle" aria-label="${esc(t("lv_circle"))}" title="${esc(t("lv_circle"))}">${CIRCLE_SVG}</button><button type="button" class="iconbtn lv-mb" data-action="lv-voice" aria-label="${esc(t("lv_voice"))}" title="${esc(t("lv_voice"))}">${MIC_SVG}</button>`);
+  }
+  if (REC) recBar();
+}
+document.addEventListener("pause", e => { if (LV.chatDirty && e.target.closest && e.target.closest("#msgs")) setTimeout(() => { if (!mediaPlaying()) renderChat(); }, 50); }, true);
+document.addEventListener("ended", e => { if (LV.chatDirty && e.target.closest && e.target.closest("#msgs")) setTimeout(() => { if (!mediaPlaying()) renderChat(); }, 50); }, true);
+
+async function sendMedia(kind, blob, meta) {
+  const id = S.active, c = id ? S.chats[id] : null; if (!c) return;
+  const type = (blob.type || "").split(";")[0];
+  if (blob.size > LIMITS[kind] * MB_) { toast(t("lv_too_big", LIMITS[kind])); return; }
+  const local = URL.createObjectURL(blob), tmp = { id: "tmp" + Date.now(), me: true, text: "", t: Date.now(), pending: true, media: Object.assign({ kind, url: local }, meta) };
+  c.msgs.push(tmp); renderChat();
+  const fail = msg => { const k = c.msgs.indexOf(tmp); if (k >= 0) c.msgs.splice(k, 1); if (S.active === id) renderChat(); toast(msg); URL.revokeObjectURL(local); };
+  const slot = await api("POST", "/chats/" + encodeURIComponent(id) + "/upload", Object.assign({ kind, type, size: blob.size }, meta));
+  if (!slot.ok) { fail(errText(slot)); return; }
+  let put;
+  try { put = await fetch(slot.url, { method: "PUT", headers: { "Content-Type": type }, body: new Blob([blob], { type }) }); } catch (e) { put = null; }
+  if (!put || !put.ok) { fail(t("lv_up_fail")); return; }
+  const r = await api("POST", "/chats/" + encodeURIComponent(id), { media: slot.key });
+  if (!r.ok) { fail(errText(r)); return; }
+  const k = c.msgs.indexOf(tmp); if (k >= 0) c.msgs[k] = r.msg;
+  c.last = { photo: "📷", voice: "🎤", video: "🎬", circle: "⏺" }[kind]; c.t = r.msg.t; c.from = ME.id;
+  if (S.active === id) renderChat();
+  setTimeout(() => URL.revokeObjectURL(local), 60000);
+}
+// photos are shrunk to 1600 px before sending
+function shrinkPhoto(file) {
+  return new Promise(res => {
+    if (file.type === "image/gif") { res({ blob: file, w: 0, h: 0 }); return; }
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k);
+      const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(u);
+      cv.toBlob(b => res({ blob: b || file, w, h }), "image/jpeg", 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); res({ blob: file, w: 0, h: 0 }); };
+    img.src = u;
+  });
+}
+function videoDuration(file) {
+  return new Promise(res => { const v = document.createElement("video"), u = URL.createObjectURL(file); v.preload = "metadata"; v.onloadedmetadata = () => { URL.revokeObjectURL(u); res({ dur: isFinite(v.duration) ? v.duration : 0, w: v.videoWidth, h: v.videoHeight }); }; v.onerror = () => { URL.revokeObjectURL(u); res({ dur: 0, w: 0, h: 0 }); }; v.src = u; });
+}
+async function pickedFile(file) {
+  if (!file) return;
+  if (file.type.startsWith("image/")) { const x = await shrinkPhoto(file); sendMedia("photo", x.blob, { w: x.w || undefined, h: x.h || undefined }); return; }
+  if (file.type.startsWith("video/")) {
+    if (file.size > LIMITS.video * MB_) { toast(t("lv_too_big", LIMITS.video)); return; }
+    const m = await videoDuration(file); sendMedia("video", file, { dur: Math.round(m.dur) || undefined, w: m.w || undefined, h: m.h || undefined }); return;
+  }
+  toast(t("lv_err").bad_media);
+}
+function pickMime(kind) {
+  if (!window.MediaRecorder) return null;
+  const list = kind === "audio" ? ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"] : ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"];
+  return list.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || "";
+}
+
+/* voice: tap the mic, then send or cancel */
+async function startVoice() {
+  if (REC) return;
+  const mime = pickMime("audio"); if (mime === null) { toast(t("lv_no_rec")); return; }
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { toast(t("lv_no_mic")); return; }
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 48000 } : undefined), chunks = [];
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  REC = { rec, stream, chunks, t0: Date.now(), cancel: false };
+  rec.onstop = () => {
+    const r = REC; REC = null; clearInterval(r.timer); r.stream.getTracks().forEach(x => x.stop()); renderChat();
+    if (r.cancel || !chunks.length) return;
+    const blob = new Blob(chunks, { type: (rec.mimeType || mime || "audio/webm").split(";")[0] }), dur = (Date.now() - r.t0) / 1000;
+    if (dur < 1) return;
+    sendMedia("voice", blob, { dur: Math.round(dur) });
+  };
+  rec.start(250);
+  REC.timer = setInterval(() => { const el = $("#recT"); if (el) el.textContent = fmtDur((Date.now() - REC.t0) / 1000); if ((Date.now() - REC.t0) > 300000) stopVoice(false); }, 250);
+  recBar();
+}
+function stopVoice(cancel) { if (!REC) return; REC.cancel = cancel; try { REC.rec.stop(); } catch (e) {} }
+function recBar() {
+  const f = $("#composer"); if (!f || !REC) return;
+  f.innerHTML = `<span class="lv-rec"><i class="lv-dot"></i>${esc(t("lv_rec"))} <b id="recT" class="mono">${fmtDur((Date.now() - REC.t0) / 1000)}</b></span><button type="button" class="btn ghost small" data-action="lv-rec-cancel">${esc(t("lv_rec_cancel"))}</button><button type="button" class="btn primary small" data-action="lv-rec-send">${ICON.send}${esc(t("lv_rec_send"))}</button>`;
+}
+
+/* round video: camera preview in a circle, up to 60 seconds */
+async function circleSheet() {
+  const mime = pickMime("video"); if (mime === null) { toast(t("lv_no_rec")); return; }
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 480 } }, audio: { echoCancellation: true } }); } catch (e) { toast(t("lv_no_cam")); return; }
+  const chat = S.active; let rec = null, chunks = [], t0 = 0, timer = null, blob = null;
+  const stop = () => stream.getTracks().forEach(x => x.stop());
+  openSheet(t("lv_circle_t"), `<div class="lv-cwrap"><video id="cPrev" class="lv-cprev" autoplay muted playsinline></video><svg class="lv-cring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" pathLength="100" id="cRing"/></svg></div><p class="hint" style="text-align:center" id="cHint">${esc(t("lv_circle_hint"))}</p>`,
+    `<button class="btn ghost" id="cAgain" hidden>${esc(t("lv_circle_again"))}</button><button class="btn primary" id="cGo">${esc(t("lv_circle_start"))}</button>`, ov => {
+      const v = ov.querySelector("#cPrev"), go = ov.querySelector("#cGo"), again = ov.querySelector("#cAgain"), ring = ov.querySelector("#cRing");
+      v.srcObject = stream;
+      const begin = () => {
+        chunks = []; blob = null; rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 900000 } : undefined);
+        rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+        rec.onstop = () => { clearInterval(timer); blob = new Blob(chunks, { type: (rec.mimeType || mime || "video/webm").split(";")[0] }); v.srcObject = null; v.src = URL.createObjectURL(blob); v.muted = false; v.loop = true; v.play().catch(() => {}); go.textContent = t("lv_rec_send"); again.hidden = false; };
+        rec.start(250); t0 = Date.now(); go.textContent = t("lv_circle_stop"); again.hidden = true;
+        timer = setInterval(() => { const k = Math.min(1, (Date.now() - t0) / 60000); ring.style.strokeDasharray = (k * 100) + " 100"; if (k >= 1) rec.stop(); }, 100);
+      };
+      go.addEventListener("click", () => {
+        if (blob) { const dur = Math.round((Date.now() - t0) / 1000); stop(); closeModal(); if (S.active !== chat) openChat(chat); sendMedia("circle", blob, { dur: Math.min(60, Math.max(1, Math.round(v.duration && isFinite(v.duration) ? v.duration : dur))) }); return; }
+        if (rec && rec.state === "recording") { rec.stop(); return; }
+        begin();
+      });
+      again.addEventListener("click", () => { if (v.src) URL.revokeObjectURL(v.src); v.removeAttribute("src"); v.srcObject = stream; v.muted = true; ring.style.strokeDasharray = "0 100"; begin(); });
+      const obs = new MutationObserver(() => { if (!document.body.contains(ov)) { obs.disconnect(); clearInterval(timer); try { if (rec && rec.state === "recording") rec.stop(); } catch (e) {} stop(); } });
+      obs.observe(document.body, { childList: true, subtree: true });
+    });
+}
+function reportMsgSheet(mid) {
+  const id = S.active; if (!id) return;
+  const rs = t("reasons");
+  openSheet(t("lv_report_msg"), `<div style="display:grid;gap:8px">${Object.keys(rs).map((k, i) => `<label class="reason"><input type="radio" name="rm" value="${k}"${i === 0 ? " checked" : ""}> ${esc(rs[k])}</label>`).join("")}</div>`,
+    `<button class="btn ghost" data-action="close-modal">${esc(t("cancel"))}</button><button class="btn primary" id="rmGo">${esc(t("report_send"))}</button>`, ov => {
+      ov.querySelector("#rmGo").addEventListener("click", async () => {
+        const reason = (ov.querySelector('input[name="rm"]:checked') || {}).value || "toxic";
+        const r = await api("POST", "/chats/" + encodeURIComponent(id) + "/report", { msg: mid, reason });
+        closeModal(); toast(r.ok ? t("reported") : errText(r));
+      });
+    });
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-action]"); if (!a) return;
+  const act = a.dataset.action, H = {
+    "lv-attach": () => { const f = $("#mediaFile"); if (f) { f.value = ""; f.click(); } },
+    "lv-voice": startVoice, "lv-rec-cancel": () => stopVoice(true), "lv-rec-send": () => stopVoice(false), "lv-circle": circleSheet,
+    "lv-photo": () => openSheet("", `<img src="${esc(a.dataset.src)}" alt="" style="width:100%;border-radius:12px;display:block">`, ""),
+    "lv-circle-play": () => { const v = a.querySelector("video"); if (!v) return; if (v.paused) { v.muted = false; v.currentTime = v.ended ? 0 : v.currentTime; v.play().catch(() => {}); a.classList.add("on"); } else { v.pause(); a.classList.remove("on"); } },
+    "lv-report-msg": () => reportMsgSheet(a.dataset.mid)
+  };
+  if (H[act]) { e.preventDefault(); e.stopPropagation(); H[act](); }
+}, true);
+document.addEventListener("change", e => { if (e.target && e.target.id === "mediaFile") pickedFile(e.target.files && e.target.files[0]); });
 
 /* ================= boot ================= */
 const teamsSoon = () => refreshTeams().then(teamsDraw);

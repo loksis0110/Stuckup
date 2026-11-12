@@ -3,6 +3,11 @@ const A = require("./auth"), V = require("./validate"), mail = require("./mail")
 const META = V.META;
 
 const ONLINE_MS = 5 * 60000, MSG_MAX = 500;
+const MB = 1048576;
+const MEDIA = { photo: { types: ["image/jpeg", "image/png", "image/webp", "image/gif"], max: 10 * MB }, voice: { types: ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/aac"], max: 5 * MB, dur: 300 },
+  video: { types: ["video/mp4", "video/webm", "video/quicktime"], max: 50 * MB, dur: 600 }, circle: { types: ["video/webm", "video/mp4"], max: 20 * MB, dur: 60 } };
+const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/aac": "aac", "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov" };
+const MEDIA_LABEL = { photo: "Фото", voice: "Голосовое", video: "Видео", circle: "Кружок" };
 const CODE_TTL = 15 * 60000, CODE_TRIES = 5, RESEND_MS = 60000, FEED_TTL = 4000, MAX_LIST = 200;
 const REASONS = ["toxic", "spam", "fake", "scam"];
 const SMOKE_DOMAIN = "@smoke.stuckup.invalid";
@@ -216,7 +221,7 @@ module.exports = function makeApi(db, opts) {
     await jobs.userGone(u);
     for (const cv of await db.list("cv:" + u.id)) {
       const cid = cidOf(u.id, cv.sk);
-      for (const m of await db.list("m:" + cid)) await db.del("m:" + cid, m.sk);
+      for (const m of await db.list("m:" + cid)) { if (m.d.media) { try { await storage.del(m.d.media.key); } catch (e) {} } await db.del("m:" + cid, m.sk); }
       await db.del("cv:" + cv.sk, u.id); await db.del("cv:" + u.id, cv.sk);
     }
     for (const part of ["cm:" + u.id, "nt:" + u.id]) for (const r of await db.list(part)) await db.del(part, r.sk);
@@ -319,25 +324,64 @@ module.exports = function makeApi(db, opts) {
     const nc = await db.get("nc", u.id);
     return { body: { chats: rows.map(r => Object.assign({}, r.d, { on: !!on[r.d.id] })), notifs: (nc && nc.n) || 0, now } };
   }
+  function msgView(m, me) {
+    const o = { id: m.id, me: m.from === me, text: m.text, t: m.t };
+    if (m.media) o.media = { kind: m.media.kind, type: m.media.type, dur: m.media.dur, w: m.media.w, h: m.media.h, url: m.media.gone ? null : storage.viewUrl(m.media.key) };
+    return o;
+  }
+  // a signed upload link for one photo / voice / video / round video in a chat
+  async function uploadSlot(req, uid) {
+    const u = await need(req), b = req.json, kind = String(b.kind || ""), rule = MEDIA[kind];
+    if (!storage.media()) throw new Http(503, "media_off");
+    if (!rule) throw new Http(400, "bad_media");
+    const type = String(b.type || "").split(";")[0].trim().toLowerCase(), size = Math.round(Number(b.size)), dur = Math.round(Number(b.dur) || 0);
+    if (!rule.types.includes(type)) throw new Http(400, "bad_media");
+    if (!(size > 0 && size <= rule.max)) throw new Http(400, "media_big", { max: rule.max });
+    if (rule.dur && dur > rule.dur + 2) throw new Http(400, "media_long", { max: rule.dur });
+    if (uid === u.id) throw new Http(400, "bad_target");
+    const target = await db.get("u", uid);
+    if (!target || target.banned) throw new Http(404, "bad_target");
+    if ((target.blocked || []).some(x => x.id === u.id)) throw new Http(403, "blocked_by");
+    await limit("up:" + u.id, 40, 3600000);
+    const key = "media/" + cidOf(u.id, uid) + "/" + A.timeId() + "." + (EXT[type] || "bin");
+    await db.put("up", key, { key, uid: u.id, to: uid, kind, type, size, dur: dur || undefined, w: Math.round(Number(b.w)) || undefined, h: Math.round(Number(b.h)) || undefined, t: Date.now() });
+    return { body: { key, url: storage.uploadUrl(key, size, type) } };
+  }
+  async function reportMsg(req, uid) {
+    const u = await need(req), b = req.json, reason = REASONS.includes(b.reason) ? b.reason : "toxic", cid = cidOf(u.id, uid);
+    const m = await db.get("m:" + cid, String(b.msg || ""));
+    if (!m || m.from === u.id || m.from !== uid) throw new Http(404, "gone");
+    await limit("report:" + u.id, 20, 86400000);
+    const from = await db.get("u", uid), id = A.timeId();
+    await db.put("rep", id, { id, t: Date.now(), from: u.id, fromNick: u.nick, target: uid, targetNick: from ? from.nick : "?", reason, msg: { cid, id: m.id, text: m.text, media: m.media ? { key: m.media.key, kind: m.media.kind } : null } });
+    return { body: { ok: true } };
+  }
   async function getChat(req, uid) {
     const u = await need(req), rows = await db.list("m:" + cidOf(u.id, uid)), after = String(req.query.after || "");
     const cv = await db.get("cv:" + u.id, uid);
     if (cv && cv.unread) { cv.unread = 0; await db.put("cv:" + u.id, uid, cv); }
-    const msgs = rows.filter(r => r.sk > after).slice(-200).map(r => ({ id: r.d.id, me: r.d.from === u.id, text: r.d.text, t: r.d.t }));
+    const msgs = rows.filter(r => r.sk > after).slice(-200).map(r => msgView(r.d, u.id));
     return { body: { msgs, now: Date.now() } };
   }
   async function sendMessage(req, uid) {
     const u = await need(req);
     if (uid === u.id) throw new Http(400, "bad_target");
     const text = String(req.json.text == null ? "" : req.json.text).replace(/[\u0000-\u0008\u000b-\u001f\u007f\u200b-\u200f\u2028-\u202e]/g, " ").trim().slice(0, MSG_MAX);
-    if (!text) throw new Http(400, "empty");
+    let media = null;
+    if (req.json.media) {
+      const up = await db.get("up", String(req.json.media));
+      if (!up || up.uid !== u.id || up.to !== uid || Date.now() - up.t > 3600000) throw new Http(400, "upload_gone");
+      media = { key: up.key, kind: up.kind, type: up.type, size: up.size, dur: up.dur, w: up.w, h: up.h };
+      await db.del("up", up.key);
+    }
+    if (!text && !media) throw new Http(400, "empty");
     const target = await db.get("u", uid);
     if (!target || target.banned) throw new Http(404, "bad_target");
     if ((target.blocked || []).some(x => x.id === u.id)) throw new Http(403, "blocked_by");
     if ((u.blocked || []).some(x => x.id === uid)) throw new Http(400, "you_blocked");
     await limit("msg:" + u.id, 40, 60000);
-    const now = Date.now(), id = A.timeId(), short = text.slice(0, 80);
-    await db.put("m:" + cidOf(u.id, uid), id, { id, from: u.id, text, t: now });
+    const now = Date.now(), id = A.timeId(), short = media ? (MEDIA_LABEL[media.kind] + (text ? " · " + text : "")).slice(0, 80) : text.slice(0, 80);
+    await db.put("m:" + cidOf(u.id, uid), id, media ? { id, from: u.id, text, t: now, media } : { id, from: u.id, text, t: now });
     const mineCv = await db.get("cv:" + u.id, uid), theirs = await db.get("cv:" + uid, u.id);
     await db.put("cv:" + u.id, uid, { id: uid, nick: target.nick, last: short, t: now, from: u.id, unread: 0, s: true, r: !!(mineCv && mineCv.r) });
     await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1, s: !!(theirs && theirs.s), r: true, tgAt: theirs && theirs.tgAt, mailAt: theirs && theirs.mailAt });
@@ -346,8 +390,8 @@ module.exports = function makeApi(db, opts) {
       if (!seen || now - seen.t > ONLINE_MS) { await social.pushMessage(target, u.nick, text); const cv = await db.get("cv:" + uid, u.id); if (cv) { cv.tgAt = now; await db.put("cv:" + uid, u.id, cv); } }
     }
     const away = await db.get("on", uid);
-    if (!away || now - away.t > ONLINE_MS) { try { await jobs.onMessage(target, u, text, ["cv:" + uid, u.id]); } catch (e) { console.error("mail message:", e.message); } }
-    return { body: { msg: { id, me: true, text, t: now } } };
+    if (!away || now - away.t > ONLINE_MS) { try { await jobs.onMessage(target, u, text || short, ["cv:" + uid, u.id]); } catch (e) { console.error("mail message:", e.message); } }
+    return { body: { msg: msgView({ id, from: u.id, text, t: now, media }, u.id) } };
   }
 
 
@@ -426,7 +470,7 @@ module.exports = function makeApi(db, opts) {
   social = require("./social")({ db, Http, need, limit, me, loginCookies: login, hooks: { myPosts } });
   storage = require("./storage")(() => db.token);
   jobs = require("./jobs")({ db, Http, need, me, storage, noteText: social.noteText, sendNotice: opts.sendNotice });
-  const admin = require("./admin")({ db, Http, limit, notify, hooks: { feedDirty: () => { feed = null; feedGen++; }, teamsDirty: () => teams.dirty() } });
+  const admin = require("./admin")({ db, Http, limit, notify, hooks: { feedDirty: () => { feed = null; feedGen++; }, teamsDirty: () => teams.dirty(), viewUrl: k => storage.viewUrl(k), delMedia: k => storage.del(k) } });
 
   function originOk(origin, h) {
     const o = String(origin).replace(/^https?:\/\//, "").toLowerCase();
@@ -469,6 +513,8 @@ module.exports = function makeApi(db, opts) {
     ["GET", /^\/api\/chats$/, listChats],
     ["GET", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, getChat],
     ["POST", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})$/, sendMessage],
+    ["POST", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})\/upload$/, uploadSlot],
+    ["POST", /^\/api\/chats\/([A-Za-z0-9_-]{6,40})\/report$/, reportMsg],
     ["GET", /^\/api\/notifs$/, listNotifs],
     ["POST", /^\/api\/notifs\/read$/, readNotifs],
     ["POST", /^\/api\/stack$/, setStack],
@@ -478,6 +524,7 @@ module.exports = function makeApi(db, opts) {
   ].concat(teams.routes, admin.routes, social.routes, jobs.routes);
 
   handle.cron = () => jobs.cron();
+  handle.devstore = (m, k, b) => storage.devstore(m, k, b);
   handle.seo = async game => (await loadFeed()).filter(p => p.game === game).sort((a, b) => b.t0 - a.t0);
   return handle;
   async function handle(req) {

@@ -28,7 +28,7 @@ module.exports = function makeAdmin(ctx) {
     const nick = id => { const t = teams.find(x => x.id === id); return t ? t.name : "?"; };
     return { body: {
       stats: { users: users.length, new24: users.filter(u => now - u.created < 86400000).length, posts: posts.length, teams: teams.length, played: scrims.filter(s => s.status === "played").length, banned: users.filter(u => u.banned).length },
-      reports: reports.filter(r => !r.done).sort((a, b) => b.t - a.t).slice(0, 100),
+      reports: reports.filter(r => !r.done).sort((a, b) => b.t - a.t).slice(0, 100).map(r => r.msg && r.msg.media && hooks.viewUrl ? Object.assign({}, r, { mediaUrl: hooks.viewUrl(r.msg.media.key) }) : r),
       disputes: scrims.filter(s => s.status === "disputed").map(s => ({ id: s.id, game: s.game, at: s.at, host: nick(s.host), guest: nick(s.guest), rep: s.rep })),
       banned: users.filter(u => u.banned).map(u => ({ id: u.id, nick: u.nick, reason: u.banned.reason || "", t: u.banned.t })),
       recent: users.sort((a, b) => b.created - a.created).slice(0, 30).map(u => ({ id: u.id, nick: u.nick, created: u.created, via: u.email ? "email" : u.tg ? "telegram" : u.vk ? "vk" : "?" }))
@@ -47,7 +47,12 @@ module.exports = function makeAdmin(ctx) {
     if (b.report) {
       const r = await db.get("rep", String(b.report)); if (!r) throw new Http(404, "gone");
       const target = await db.get("u", r.target);
-      if (a === "remove" || a === "ban") {
+      if (r.msg && (a === "remove" || a === "ban")) {
+        const m = await db.get("m:" + r.msg.cid, r.msg.id);
+        if (m) { if (m.media) { try { await hooks.delMedia(m.media.key); } catch (e) {} m.media.gone = true; } m.text = m.text ? "[удалено модератором]" : ""; await db.put("m:" + r.msg.cid, r.msg.id, m); }
+        if (target && a === "remove") await notify(target.id, "mod_warn", [], { type: "feed" });
+      }
+      if (r.post && (a === "remove" || a === "ban")) {
         const p = await db.get("p", r.post.id);
         if (p) { await db.del("p", p.id); if (target && target.posts && target.posts[p.game] === p.id) { delete target.posts[p.game]; await db.put("u", target.id, target); } hooks.feedDirty(); }
         if (target && a === "remove") await notify(target.id, "mod_post", [], { type: "feed" });

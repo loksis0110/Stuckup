@@ -32,6 +32,25 @@ function ok(cond, what, detail) { if (!cond) { console.log("SMOKE FAIL:", what, 
   jar = saved;
   const me = await call("GET", "/api/me");
   ok(me.status === 200 && me.json.user && me.json.posts.length === 1, "session restored", me.json);
+  // chat media through Object Storage: a second account, a signed upload, then download by the receiver
+  const health = (await call("GET", "/api/health")).json;
+  if (health.media) {
+    const mainJar = jar; jar = "";
+    const e2 = "t2" + Date.now().toString(36) + "@smoke.stuckup.invalid", r2 = await call("POST", "/api/auth/register", { email: e2, password: "smoke-password-1", nick: "smk2_" + Date.now().toString(36).slice(-6), consent: true });
+    const v2 = await call("POST", "/api/auth/verify", { email: e2, code: r2.json.devCode }), jar2 = jar, uid2 = v2.json.user.id; jar = mainJar;
+    const bytes = Buffer.from("stuckup-media-check-" + Date.now());
+    const slot = await call("POST", "/api/chats/" + uid2 + "/upload", { kind: "voice", type: "audio/webm", size: bytes.length, dur: 1 });
+    ok(slot.status === 200 && slot.json.url, "media upload slot", slot.json);
+    const put = await fetch(slot.json.url.startsWith("http") ? slot.json.url : base + slot.json.url, { method: "PUT", headers: { "Content-Type": "audio/webm", Origin: base }, body: bytes });
+    ok(put.ok, "upload to storage with the signed link", { status: put.status, body: (await put.text()).slice(0, 300) });
+    const msg = await call("POST", "/api/chats/" + uid2, { media: slot.json.key });
+    ok(msg.status === 200 && msg.json.msg.media, "media message", msg.json);
+    jar = jar2; const got = await call("GET", "/api/chats/" + me.json.user.id); jar = mainJar;
+    const m = got.json.msgs.pop(), dl = await fetch(m.media.url.startsWith("http") ? m.media.url : base + m.media.url, { headers: { Origin: base } });
+    const back = Buffer.from(await dl.arrayBuffer());
+    ok(dl.ok && back.equals(bytes), "receiver downloads the file", { status: dl.status, cors: dl.headers.get("access-control-allow-origin") });
+    jar = jar2; await call("DELETE", "/api/me", { password: "smoke-password-1" }); jar = mainJar;
+  }
   const del = await call("DELETE", "/api/me", { password: "smoke-password-1" });
   ok(del.status === 200, "delete account", del.json);
   jar = "";

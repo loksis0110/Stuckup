@@ -13,7 +13,7 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
   ".png": "image/png", ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2" };
 const TEXT = [".html", ".js", ".css", ".json", ".webmanifest", ".txt", ".xml", ".svg"];
 const PAGES = { "/": "index.html", "/privacy": "privacy.html", "/rules": "rules.html", "/admin": "admin.html" };
-const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://yastatic.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://mc.yandex.ru https://mc.yandex.com; font-src 'self'; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://yastatic.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://mc.yandex.ru https://mc.yandex.com https://storage.yandexcloud.net; media-src 'self' blob: https://storage.yandexcloud.net; font-src 'self'; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com https://storage.yandexcloud.net; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 const files = new Map();
 function walk(dir, pre) {
@@ -77,6 +77,11 @@ async function handler(event, context) {
   let p = reqPath(event); try { p = decodeURIComponent(p); } catch (e) {}
   if (p.length > 1) p = p.replace(/\/+$/, "") || "/";
 
+  // local dev only: stand-in for Object Storage
+  if (p.startsWith("/api/devstore/") && !process.env.DOCAPI_ENDPOINT && !process.env.S3_BUCKET) {
+    const r = api.devstore(method, p.slice("/api/devstore/".length), event.isBase64Encoded ? event.body : Buffer.from(event.body || "").toString("base64"));
+    return r.body ? out(200, { "Content-Type": "application/octet-stream" }, r.body.toString("base64"), true) : out(r.status, {}, "");
+  }
   if (p === "/api" || p.startsWith("/api/")) {
     let json;
     if (event.body) {

@@ -602,7 +602,7 @@ function deleteAccSheet() {
 /* ---------- chat ---------- */
 function unreadTotal() { return Object.keys(S.chats).reduce((a, id) => a + (S.blocked.includes(id) ? 0 : (S.chats[id].unread || 0)), 0); }
 function chatSig() { return Object.keys(S.chats).map(id => id + ":" + S.chats[id].t + ":" + S.chats[id].unread + ":" + (S.chats[id].on ? 1 : 0)).join("|"); }
-function renderChat() {
+function renderChatCore() {
   const box = $("#chatbox"); if (!box) return;
   const head = `<div class="ch-head"><h2 class="sec">${esc(t("chats"))}</h2></div>`;
   if (!ME) { box.innerHTML = head + `<div class="empty" style="margin:16px"><span>${esc(t("lv_chat_guest"))}</span><button class="btn primary small" data-action="lv-auth">${esc(t("lv_login"))}</button></div>`; renderUnread(); return; }
@@ -624,12 +624,12 @@ function renderChat() {
   const msgs = c.msgs.map(m => {
     if (m.sys) return `<div class="m sys">${esc(m.text)}</div>`;
     const d = dateStr(m.t), sep = d !== day ? `<div class="m sys lv-day">${esc(d)}</div>` : ""; day = d;
-    return sep + `<div class="m ${m.me ? "me" : "them"}${m.pending ? " lv-pending" : ""}">${esc(m.text)}<span class="tm">${clock(m.t)}</span></div>`;
+    return sep + `<div class="m ${m.me ? "me" : "them"}${m.pending ? " lv-pending" : ""}${m.media ? " lv-media lv-" + m.media.kind : ""}" data-mid="${esc(m.id)}">${msgBody(m)}<span class="tm">${clock(m.t)}</span></div>`;
   }).join("");
   box.innerHTML = `<div class="room"><div class="ch-head"><button class="iconbtn" data-action="close-chat" aria-label="${esc(t("back"))}">${ICON.back}</button>${who}</div>` +
     `<div class="msgs" id="msgs">${msgs || (c.loaded ? "" : `<div class="m sys">…</div>`)}</div>` +
     `<div class="qr">${c.msgs.length ? "" : t("quick_r").map(q => `<button type="button" data-action="qr" data-text="${esc(q)}">${esc(q)}</button>`).join("")}<button type="button" class="cbtn" data-action="send-contacts">${ICON.at}${esc(t("my_contacts"))}</button></div>` +
-    `<form class="composer" id="composer" autocomplete="off"><input class="inp" id="msgInput" maxlength="500" placeholder="${esc(t("msg_ph"))}" aria-label="${esc(t("msg_ph"))}"><button class="btn primary" type="submit" aria-label="${esc(t("send"))}">${ICON.send}</button></form></div>`;
+    `<form class="composer" id="composer" autocomplete="off">${mediaButtons()}<input class="inp" id="msgInput" maxlength="500" placeholder="${esc(t("msg_ph"))}" aria-label="${esc(t("msg_ph"))}"><button class="btn primary" type="submit" aria-label="${esc(t("send"))}">${ICON.send}</button></form></div>`;
   const ms = $("#msgs"); ms.scrollTop = ms.scrollHeight;
   const inp = $("#msgInput"); inp.value = draft; if (focused) inp.focus();
   renderUnread();
@@ -697,7 +697,7 @@ async function pollChats() {
     if (S.active === x.id && chatVisible(x.id)) { if (fresh || x.unread) loadChat(x.id); }
     else c.unread = x.unread;
   });
-  if (before !== chatSig()) { if (!S.active && (isWide() || S.view === "chats")) renderChat(); else renderUnread(); }
+  if (before !== chatSig()) { uiState(); if (!S.active && (isWide() || S.view === "chats")) renderChat(); else renderUnread(); }
 }
 function chatTick() {
   teamsDraw();

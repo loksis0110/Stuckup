@@ -22,7 +22,7 @@ for line in live.split("\n"):
     if m: cur = m.group(1); parts[cur] = []; continue
     if cur: parts[cur].append(line)
 head, main, boot = ("\n".join(parts[k]).strip() + "\n" for k in ("head", "main", "boot"))
-main += "\n" + (SRC / "live_teams.js").read_text() + "\n" + (SRC / "live_social.js").read_text() + "\n" + (SRC / "live_ui.js").read_text()
+main += "\n" + (SRC / "live_teams.js").read_text() + "\n" + (SRC / "live_social.js").read_text() + "\n" + (SRC / "live_ui.js").read_text() + "\n" + (SRC / "live_media.js").read_text()
 
 def cut(s, a, b, new):
     i, j = s.index(a), s.index(b)

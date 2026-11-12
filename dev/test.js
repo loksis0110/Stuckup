@@ -369,3 +369,35 @@ test("mail notifications, game subscriptions, unsubscribe, backups", async () =>
     assert.equal((await b("POST", "/api/subs", { game: "cs2", on: false })).json.user.subs.cs2, undefined);
   } finally { mailMod.sendNotice = realSend; mailMod.mode = realMode; }
 });
+
+test("chat media: signed upload, media message, report and moderation", async () => {
+  const a = client(), b = client(), adm = client();
+  const ua = await signup(a, "md1@smoke.stuckup.invalid", "MediaA"), ub = await signup(b, "md2@smoke.stuckup.invalid", "MediaB");
+  assert.equal((await a("POST", "/api/chats/" + ub.id + "/upload", { kind: "photo", type: "image/svg+xml", size: 100 })).json.error, "bad_media");
+  assert.equal((await a("POST", "/api/chats/" + ub.id + "/upload", { kind: "voice", type: "audio/webm", size: 9e6, dur: 10 })).json.error, "media_big");
+  assert.equal((await a("POST", "/api/chats/" + ub.id + "/upload", { kind: "circle", type: "video/webm", size: 1e6, dur: 90 })).json.error, "media_long");
+  const up = (await a("POST", "/api/chats/" + ub.id + "/upload", { kind: "voice", type: "audio/webm;codecs=opus", size: 2048, dur: 7 })).json;
+  assert.match(up.url, /^\/api\/devstore\/media\//);
+  // upload the bytes to the (dev) storage, then send the message
+  const put = await handler({ httpMethod: "PUT", path: up.url.split("?")[0], headers: {}, body: Buffer.from("voice-bytes").toString("base64"), isBase64Encoded: true }, {});
+  assert.equal(put.statusCode, 200);
+  assert.equal((await b("POST", "/api/chats/" + ua.id, { media: up.key })).json.error, "upload_gone"); // somebody else's upload
+  const sent = (await a("POST", "/api/chats/" + ub.id, { media: up.key })).json.msg;
+  assert.equal(sent.media.kind, "voice"); assert.equal(sent.media.dur, 7);
+  assert.equal((await a("POST", "/api/chats/" + ub.id, { media: up.key })).json.error, "upload_gone"); // one upload — one message
+  const got = (await b("GET", "/api/chats/" + ua.id)).json.msgs.pop();
+  assert.equal(got.media.kind, "voice");
+  const file = await handler({ httpMethod: "GET", path: got.media.url.split("?")[0], headers: {} }, {});
+  assert.equal(Buffer.from(file.body, "base64").toString(), "voice-bytes");
+  assert.equal((await b("GET", "/api/chats")).json.chats[0].last, "Голосовое");
+  // report → admin removes the file
+  assert.equal((await b("POST", "/api/chats/" + ua.id + "/report", { msg: got.id, reason: "toxic" })).status, 200);
+  process.env.ADMIN_PASSWORD = "correct-horse-battery";
+  await adm("POST", "/api/admin/login", { password: "correct-horse-battery" });
+  const rep = (await adm("GET", "/api/admin/overview")).json.reports.find(r => r.msg && r.msg.id === got.id);
+  assert.ok(rep && rep.mediaUrl);
+  assert.equal((await adm("POST", "/api/admin/act", { report: rep.id, action: "remove" })).status, 200);
+  const after = (await b("GET", "/api/chats/" + ua.id)).json.msgs.pop();
+  assert.equal(after.media.url, null);
+  delete process.env.ADMIN_PASSWORD;
+});
