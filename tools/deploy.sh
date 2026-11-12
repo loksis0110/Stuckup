@@ -172,6 +172,8 @@ domain_setup() {
   }
   rec "$SITE_DOMAIN." 300 ANAME "$DOMAIN."
   rec "www.$SITE_DOMAIN." 300 CNAME "$DOMAIN."
+  rec "$SITE_DOMAIN." 600 TXT "google-site-verification=a7s506NVngEIKuFJg9BIefbxJUG8cJEg1djQTl8A0D4"
+  say "dns txt: $(yc dns zone list-records --name "$ZONE" --format json | jq -c '[.[] | select(.type=="TXT") | .data[]]')"
   # site verification records (search engines); added once, other TXT records are left alone
   for V in "google-site-verification=a7s506NVngEIKuFJg9BIefbxJUG8cJEg1djQTl8A0D4"; do
     if yc dns zone list-records --name "$ZONE" --format json | jq -e --arg v "$V" '.[] | select(.type=="TXT") | .data[] | select(contains($v))' >/dev/null 2>&1; then say "dns: TXT ${V%%=*} present"
