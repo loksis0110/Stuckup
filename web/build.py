@@ -105,7 +105,7 @@ meta = f'''<!doctype html>
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<!--VERIFY-->
+<meta name="yandex-verification" content="38e73a0af0546fe8">
 <script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>
 <script>window.STUCKUP_SITE = "{SITE}";</script>
 <script>(function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym({METRIKA},"init",{{clickmap:true,trackLinks:true,accurateTrackBounce:true}});window.STUCKUP_YM={METRIKA};</script>
