@@ -74,6 +74,7 @@ faces = "".join('@font-face{font-family:"%s";src:url(/fonts/%s.woff) format("wof
 assert "<style>" in top
 top = top.replace("<style>", "<style>\n" + faces, 1)
 
+METRIKA = 114211934
 TITLE = "Stuckup — поиск тиммейтов в Dota 2, CS2, Valorant и других играх"
 DESC = "Найди тиммейтов своего ранга в Dota 2, CS2, Valorant, LoL, Deadlock, Marvel Rivals, Apex, PUBG, Fortnite и Standoff 2. Размести объявление и собери команду на вечер. Бесплатно."
 ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": "Stuckup", "url": SITE + "/", "applicationCategory": "GameApplication",
@@ -105,6 +106,7 @@ meta = f'''<!doctype html>
 <!--VERIFY-->
 <script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>
 <script>window.STUCKUP_SITE = "{SITE}";</script>
+<script>(function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym({METRIKA},"init",{{clickmap:true,trackLinks:true,accurateTrackBounce:true}});window.STUCKUP_YM={METRIKA};</script>
 '''
 (OUT / "index.html").write_text(meta + top + "\n</head>\n<body>" + body + "\n</body>\n</html>\n")
 

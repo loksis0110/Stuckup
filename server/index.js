@@ -13,7 +13,7 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
   ".png": "image/png", ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2" };
 const TEXT = [".html", ".js", ".css", ".json", ".webmanifest", ".txt", ".xml", ".svg"];
 const PAGES = { "/": "index.html", "/privacy": "privacy.html", "/rules": "rules.html", "/admin": "admin.html" };
-const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://yastatic.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://mc.yandex.ru https://mc.yandex.com; font-src 'self'; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 const files = new Map();
 function walk(dir, pre) {

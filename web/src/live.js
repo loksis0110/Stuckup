@@ -121,6 +121,7 @@ async function api(method, path, body) {
   if (!res.ok) return Object.assign({}, j || {}, { ok: false, status: res.status, error: (j && j.error) || "server" });
   return Object.assign({}, j || {}, { ok: true, status: res.status });
 }
+function goal(name) { try { if (window.ym && window.STUCKUP_YM) window.ym(window.STUCKUP_YM, "reachGoal", name); } catch (e) {} }
 function errText(r) { const m = t("lv_err"); return m[r.error] || m.server; }
 
 /* ---------- local state + profile sync ---------- */
@@ -418,6 +419,7 @@ async function doPublish() {
   closeModal();
   if (S.game !== "all" && S.game !== g) setGame(g);
   setView("feed"); renderAll();
+  goal("post");
   toast(r.replaced ? t("posted") + ". " + t("replaced") : t("posted"));
 }
 async function renewPost(id) {
@@ -508,6 +510,7 @@ async function authSubmit() {
   }
   AU.busy = false;
   if (m === "register" || m === "reset") { AU.mode = m === "register" ? "code" : "reset2"; AU.code = ""; AU.devCode = r.devCode || ""; if (m === "reset") AU.pass = ""; authRender(); return; }
+  if (m === "code") goal("signup");
   await signedIn(r);
 }
 async function authResend() {

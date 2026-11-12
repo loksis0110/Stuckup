@@ -25,6 +25,7 @@
 <!--VERIFY-->
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Stuckup", "url": "https://stuckup.ru/", "applicationCategory": "GameApplication", "operatingSystem": "Web", "inLanguage": ["ru", "en"], "description": "Найди тиммейтов своего ранга в Dota 2, CS2, Valorant, LoL, Deadlock, Marvel Rivals, Apex, PUBG, Fortnite и Standoff 2. Размести объявление и собери команду на вечер. Бесплатно.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "RUB"}}</script>
 <script>window.STUCKUP_SITE = "https://stuckup.ru";</script>
+<script>(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(114211934,"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true});window.STUCKUP_YM=114211934;</script>
 <style>
 @font-face{font-family:"Unbounded";src:url(/fonts/Unbounded.woff) format("woff");font-weight:100 900;font-style:normal;font-display:swap}
 @font-face{font-family:"Onest";src:url(/fonts/Onest.woff) format("woff");font-weight:100 900;font-style:normal;font-display:swap}
@@ -3174,6 +3175,7 @@ async function api(method, path, body) {
   if (!res.ok) return Object.assign({}, j || {}, { ok: false, status: res.status, error: (j && j.error) || "server" });
   return Object.assign({}, j || {}, { ok: true, status: res.status });
 }
+function goal(name) { try { if (window.ym && window.STUCKUP_YM) window.ym(window.STUCKUP_YM, "reachGoal", name); } catch (e) {} }
 function errText(r) { const m = t("lv_err"); return m[r.error] || m.server; }
 
 /* ---------- local state + profile sync ---------- */
@@ -3471,6 +3473,7 @@ async function doPublish() {
   closeModal();
   if (S.game !== "all" && S.game !== g) setGame(g);
   setView("feed"); renderAll();
+  goal("post");
   toast(r.replaced ? t("posted") + ". " + t("replaced") : t("posted"));
 }
 async function renewPost(id) {
@@ -3561,6 +3564,7 @@ async function authSubmit() {
   }
   AU.busy = false;
   if (m === "register" || m === "reset") { AU.mode = m === "register" ? "code" : "reset2"; AU.code = ""; AU.devCode = r.devCode || ""; if (m === "reset") AU.pass = ""; authRender(); return; }
+  if (m === "code") goal("signup");
   await signedIn(r);
 }
 async function authResend() {
