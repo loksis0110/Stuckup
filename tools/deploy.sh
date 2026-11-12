@@ -74,9 +74,27 @@ if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then ENVS+=(--environment "TELEGRAM_BOT_TOK
 for V in ADMIN_PASSWORD VK_CLIENT_ID VK_CLIENT_SECRET FACEIT_API_KEY; do
   if [ -n "${!V:-}" ]; then ENVS+=(--environment "$V=${!V}"); say "secret $V: set"; else say "secret $V: not set"; fi
 done
-yc serverless function version create --function-name "$NAME" --runtime nodejs22 --entrypoint index.handler --memory 256m --execution-timeout 15s \
+say "storage"
+BUCKET="stuckup-files-$YC_FOLDER_ID"
+if ! yc storage bucket get "$BUCKET" >/dev/null 2>&1; then
+  yc storage bucket create --name "$BUCKET" --max-size 53687091200 >/dev/null 2>"$WORK/err.txt" || yc storage bucket create --name "$BUCKET" >/dev/null 2>>"$WORK/err.txt" || say "bucket create failed: $(head -c 300 "$WORK/err.txt")"
+fi
+yc storage bucket get "$BUCKET" >/dev/null 2>&1 && { ENVS+=(--environment "S3_BUCKET=$BUCKET"); say "bucket: $BUCKET"; }
+PREV=$(yc serverless function version get-by-tag --function-name "$NAME" --tag '$latest' --format json 2>/dev/null || echo '{}')
+S3_KEY_ID=$(echo "$PREV" | jq -r '.environment.S3_KEY_ID // empty'); S3_SECRET=$(echo "$PREV" | jq -r '.environment.S3_SECRET // empty')
+if [ -z "$S3_KEY_ID" ] || [ -z "$S3_SECRET" ]; then
+  if KJ=$(yc iam access-key create --service-account-id "$SA_ID" --description "stuckup chat media" --format json 2>"$WORK/err.txt"); then
+    S3_KEY_ID=$(echo "$KJ" | jq -r '.access_key.key_id'); S3_SECRET=$(echo "$KJ" | jq -r '.secret'); say "static access key created"
+  else say "access key create failed: $(head -c 300 "$WORK/err.txt")"; fi
+fi
+[ -n "$S3_KEY_ID" ] && [ -n "$S3_SECRET" ] && ENVS+=(--environment "S3_KEY_ID=$S3_KEY_ID" --environment "S3_SECRET=$S3_SECRET")
+yc serverless function version create --function-name "$NAME" --runtime nodejs22 --entrypoint index.handler --memory 256m --execution-timeout 30s \
   --source-path "$WORK/build.zip" --service-account-id "$SA_ID" "${ENVS[@]}" >/dev/null
 say "function version created (build $BUILD)"
+if ! yc serverless trigger get stuckup-cron >/dev/null 2>&1; then
+  yc serverless trigger create timer --name stuckup-cron --cron-expression '* * ? * * *' --invoke-function-id "$FN_ID" --invoke-function-service-account-id "$SA_ID" >/dev/null 2>"$WORK/err.txt" \
+    && say "timer trigger created (every minute)" || say "timer trigger create failed: $(head -c 400 "$WORK/err.txt")"
+else say "timer trigger: ok"; fi
 
 say "5/7 api gateway"
 cat > "$WORK/spec.yaml" <<YAML
@@ -135,6 +153,9 @@ say "outbound from the function: $(curl -s --max-time 40 -X POST -H 'Content-Typ
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
   say "telegram bot: $(curl -s --max-time 20 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe" | jq -r '.result.username // .description' 2>/dev/null)"
 fi
+H() { curl -s --max-time 60 -X POST -H 'Content-Type: application/json' -H "x-smoke-key: $SMOKE_KEY" -d "$1" "https://$DOMAIN/api/health/mail"; }
+say "storage cors: $(H '{"what":"cors","origins":"https://stuckup.ru,https://'"$DOMAIN"'"}' | head -c 300)"
+say "backup now: $(H '{"what":"backup"}' | head -c 300)"
 say "7/7 smoke test"
 SMOKE_KEY="$SMOKE_KEY" node dev/smoke.js "https://$DOMAIN"
 

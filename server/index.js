@@ -51,6 +51,8 @@ function out(status, headers, body, b64, setCookies) {
 async function handler(event, context) {
   event = event || {};
   if (db.setToken && context && context.token) db.setToken(context.token.access_token);
+  // timer trigger: background jobs (mail queue, backups)
+  if (Array.isArray(event.messages) && !event.httpMethod) { const r = await api.cron(); console.log("cron", JSON.stringify(r)); return { statusCode: 200, body: "" }; }
   const headers = lower(event.headers), rc = event.requestContext || {};
   const method = String(event.httpMethod || rc.httpMethod || (rc.http && rc.http.method) || "GET").toUpperCase();
   let p = reqPath(event); try { p = decodeURIComponent(p); } catch (e) {}

@@ -33,7 +33,7 @@ module.exports = function makeApi(db, opts) {
   function me(u) {
     if (u.archive && u.archive.length) u.archive = u.archive.filter(a => Date.now() - (a.ended || 0) < WEEK);
     return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], stacks: u.stacks || {}, created: u.created,
-      hasPass: !!u.pass, tg: u.tg ? { name: u.tg.name, on: !u.tg.off } : null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit ? u.faceit.nick : null, ver: u.ver || {} };
+      mailp: u.email ? Object.assign({ msg: true, inv: true }, u.mailp || {}) : null, subs: u.subs || {}, hasPass: !!u.pass, tg: u.tg ? { name: u.tg.name, on: !u.tg.off } : null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit ? u.faceit.nick : null, ver: u.ver || {} };
   }
   function view(p, viewer) {
     const o = Object.assign({}, p), has = !!(p.c && (p.c.dc || p.c.tg));
@@ -73,7 +73,7 @@ module.exports = function makeApi(db, opts) {
     return {};
   }
   function login(u) { return [A.sessionCookie(A.makeSession(u.id, u.sv || 0))]; }
-  let social = null;
+  let social = null, storage = null, jobs = null;
 
   /* ---------- auth ---------- */
   async function register(req) {
@@ -213,6 +213,7 @@ module.exports = function makeApi(db, opts) {
     const u = await need(req);
     if (u.pass ? !(await A.checkPassword(String(req.json.password == null ? "" : req.json.password), u.pass)) : String(req.json.confirm || "") !== u.nick) throw new Http(401, "bad_password");
     for (const g of Object.keys(u.posts || {})) await db.del("p", u.posts[g]);
+    await jobs.userGone(u);
     for (const cv of await db.list("cv:" + u.id)) {
       const cid = cidOf(u.id, cv.sk);
       for (const m of await db.list("m:" + cid)) await db.del("m:" + cid, m.sk);
@@ -268,6 +269,7 @@ module.exports = function makeApi(db, opts) {
     await db.put("p", post.id, post);
     await db.put("u", u.id, u);
     feed = null; feedGen++;
+    try { await jobs.onPost(post, u); } catch (e) { console.error("mail subs:", e.message); }
     return { body: { post: view(post, u), user: me(u), replaced } };
   }
   async function ownPost(req, id) {
@@ -338,11 +340,13 @@ module.exports = function makeApi(db, opts) {
     await db.put("m:" + cidOf(u.id, uid), id, { id, from: u.id, text, t: now });
     const mineCv = await db.get("cv:" + u.id, uid), theirs = await db.get("cv:" + uid, u.id);
     await db.put("cv:" + u.id, uid, { id: uid, nick: target.nick, last: short, t: now, from: u.id, unread: 0, s: true, r: !!(mineCv && mineCv.r) });
-    await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1, s: !!(theirs && theirs.s), r: true });
+    await db.put("cv:" + uid, u.id, { id: u.id, nick: u.nick, last: short, t: now, from: u.id, unread: ((theirs && theirs.unread) || 0) + 1, s: !!(theirs && theirs.s), r: true, tgAt: theirs && theirs.tgAt, mailAt: theirs && theirs.mailAt });
     if (target.tg && !target.tg.off && !(theirs && theirs.tgAt && now - theirs.tgAt < 600000)) {
       const seen = await db.get("on", uid);
       if (!seen || now - seen.t > ONLINE_MS) { await social.pushMessage(target, u.nick, text); const cv = await db.get("cv:" + uid, u.id); if (cv) { cv.tgAt = now; await db.put("cv:" + uid, u.id, cv); } }
     }
+    const away = await db.get("on", uid);
+    if (!away || now - away.t > ONLINE_MS) { try { await jobs.onMessage(target, u, text, ["cv:" + uid, u.id]); } catch (e) { console.error("mail message:", e.message); } }
     return { body: { msg: { id, me: true, text, t: now } } };
   }
 
@@ -354,6 +358,7 @@ module.exports = function makeApi(db, opts) {
     const nc = await db.get("nc", uid);
     await db.put("nc", uid, { n: ((nc && nc.n) || 0) + 1 });
     if (social) await social.push(uid, k, a);
+    if (jobs) { try { await jobs.onNotify(uid, k, a); } catch (e) { console.error("mail notify:", e.message); } }
   }
   async function listNotifs(req) {
     const u = await need(req), rows = await db.list("nt:" + u.id);
@@ -419,6 +424,8 @@ module.exports = function makeApi(db, opts) {
   const teams = require("./teams")({ db, Http, need, currentUser, limit, notify });
 
   social = require("./social")({ db, Http, need, limit, me, loginCookies: login, hooks: { myPosts } });
+  storage = require("./storage")(() => db.token);
+  jobs = require("./jobs")({ db, Http, need, me, storage, noteText: social.noteText, sendNotice: opts.sendNotice });
   const admin = require("./admin")({ db, Http, limit, notify, hooks: { feedDirty: () => { feed = null; feedGen++; }, teamsDirty: () => teams.dirty() } });
 
   function originOk(origin, h) {
@@ -430,13 +437,15 @@ module.exports = function makeApi(db, opts) {
 
   /* ---------- router ---------- */
   const ROUTES = [
-    ["GET", /^\/api\/health$/, async () => { let dbOk = true, err; try { await db.ping(); } catch (e) { dbOk = false; err = String(e.message).slice(0, 200); } return { status: dbOk ? 200 : 503, body: { ok: dbOk, db: dbOk, err, mail: mail.mode(), build: process.env.BUILD || "dev", now: Date.now() } }; }],
+    ["GET", /^\/api\/health$/, async () => { let dbOk = true, err; try { await db.ping(); } catch (e) { dbOk = false; err = String(e.message).slice(0, 200); } return { status: dbOk ? 200 : 503, body: { ok: dbOk, db: dbOk, err, mail: mail.mode(), media: storage.media(), backup: dbOk ? await jobs.backupInfo() : null, build: process.env.BUILD || "dev", now: Date.now() } }; }],
     ["GET", /^\/api\/config$/, async () => ({ body: Object.assign({ mail: mail.mode(), build: process.env.BUILD || "dev" }, social.config()) })],
     ["POST", /^\/api\/health\/mail$/, async req => {
       // deploy-time check: sends a test letter to the site's own mailbox
       const k = process.env.SMOKE_KEY; if (!k || !A.safeEq(req.headers["x-smoke-key"] || "", k)) throw new Http(403, "forbidden");
       if (req.json.what === "tg") return { body: await social.tgCheck() };
       if (req.json.what === "net") return { body: await social.netCheck() };
+      if (req.json.what === "backup") return { body: await jobs.backup(true) };
+      if (req.json.what === "cors") return { body: { cors: storage.real() ? await storage.setCors(String(req.json.origins || "").split(",").filter(Boolean)) : "no bucket" } };
       if (mail.mode() !== "smtp") return { body: { ok: false, err: "not configured" } };
       try { await mail.sendCode(mail.cfg().from, "000000", "ru", "reg"); return { body: { ok: true } }; } catch (e) { return { body: { ok: false, err: String(e.message).slice(0, 200) } }; }
     }],
@@ -466,9 +475,11 @@ module.exports = function makeApi(db, opts) {
     ["GET", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, listComments],
     ["PUT", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, putComment],
     ["DELETE", /^\/api\/comments\/([A-Za-z0-9_-]{6,40})$/, delComment]
-  ].concat(teams.routes, admin.routes, social.routes);
+  ].concat(teams.routes, admin.routes, social.routes, jobs.routes);
 
-  return async function handle(req) {
+  handle.cron = () => jobs.cron();
+  return handle;
+  async function handle(req) {
     try {
       let known = false;
       for (const [method, re, fn] of ROUTES) {
@@ -493,5 +504,5 @@ module.exports = function makeApi(db, opts) {
       console.error("api error:", req.method, req.path, e && e.stack || e);
       return { status: 500, body: { error: "server" }, cookies: [] };
     }
-  };
+  }
 };

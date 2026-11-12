@@ -271,5 +271,6 @@ module.exports = function makeSocial(ctx) {
     }
     return out;
   }
-  return { routes, config, push, pushMessage, userGone, tgCheck, netCheck, autoRefresh };
+  const noteText = (u, k, a) => { const f = L(u).n[k]; return f ? f(a || []) : ""; };
+  return { routes, config, push, pushMessage, userGone, tgCheck, netCheck, autoRefresh, noteText };
 };

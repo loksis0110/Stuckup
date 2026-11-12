@@ -882,6 +882,24 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 #ps-main .cgrid .field:focus-within .hint, #ps-main .cgrid .hint.err { display: block; }
 #ps-main .p-head { flex-wrap: wrap; gap: 10px 12px; }
 
+.feedhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lv-follow { margin-left: auto; }
+.lv-follow.on { color: var(--accent-text); }
+.lv-follow svg.i { width: 15px; height: 15px; }
+.lv-sws { display: grid; gap: 4px; }
+.lv-sw { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; border-top: 1px solid var(--line); }
+.lv-sw:first-child { border-top: 0; }
+.lv-sw .txt { flex: 1; display: grid; gap: 2px; }
+.lv-sw .txt span { font-size: 13px; color: var(--muted); }
+.lv-sw input { position: absolute; opacity: 0; pointer-events: none; }
+.lv-sw i { width: 40px; height: 24px; border-radius: 999px; background: var(--line-2); position: relative; flex: none; transition: background .15s; }
+.lv-sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--fg); transition: transform .15s; }
+.lv-sw input:checked + i { background: var(--accent); }
+.lv-sw input:checked + i::after { transform: translateX(16px); background: #1a1300; }
+.lv-sw input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lv-subrow { display: flex; align-items: center; gap: 10px; }
+.lv-subrow .sp { flex: 1; }
+
 @media (max-width: 639px) {
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .slot, .slot .av { width: 38px; height: 38px; border-radius: 10px; }
@@ -3199,7 +3217,7 @@ async function pushProfile() {
   return r;
 }
 function adoptUser(u) {
-  ME = { id: u.id, email: u.email, nick: u.nick, hasPass: u.hasPass !== false, tg: u.tg || null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit || null, ver: u.ver || {} };
+  ME = { id: u.id, email: u.email, nick: u.nick, hasPass: u.hasPass !== false, tg: u.tg || null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit || null, ver: u.ver || {}, mailp: u.mailp || null, subs: u.subs || {} };
   S.profile = Object.assign(blankProfile(S.lang), u.profile, { nick: u.nick });
   Object.keys(ME.ver).forEach(sys => { S.profile.ver[sys] = "api"; });
   GAME_KEYS.forEach(g => { if (!S.profile.ranks[g]) S.profile.ranks[g] = {}; });
@@ -3295,7 +3313,7 @@ function pickCard(x) {
   const p = x.p, id = esc(p.id);
   return `<div class="pick" style="--g:var(${GAMES[p.game].color})"><div class="pick-h"><button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, false)}</button><div class="who"><div class="nick"><button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button></div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span>${miniRank(p.r)}</div></div></div><div class="pick-f"><span class="why">${esc(x.why.map(w => t("picks_why")[w]).join(" · "))}</span><button class="btn primary small" data-action="open-chat" data-id="${id}">${esc(t("write"))}</button></div></div>`;
 }
-function renderFeed() {
+function renderFeedCore() {
   if (!LV.ready) {
     $("#count").textContent = "";
     $("#list").innerHTML = LV.loadErr ? `<div class="empty"><span>${esc(t("lv_load_err"))}</span><button class="btn small" data-action="lv-retry">${ICON.refresh}${esc(t("lv_retry"))}</button></div>`
@@ -3614,7 +3632,7 @@ function renderProfile() {
   const favRows = LV.favList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="iconbtn fav" data-action="fav" data-id="${esc(x.id)}" aria-label="${esc(t("fav_on"))}" title="${esc(t("fav_on"))}">${ICON.star}</button></div>`).join("");
   const blkRows = LV.blockList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="btn ghost small" data-action="unblock" data-id="${esc(x.id)}">${esc(t("unblock"))}</button></div>`).join("");
   h += `<div class="panel" id="ps-people"><div class="field"><h2 class="sec">${esc(t("favs_title"))}</h2>${favRows ? `<div>${favRows}</div>` : `<p class="hint">${esc(t("favs_empty"))}</p>`}</div><div class="field"><h2 class="sec">${esc(t("blocked_title"))}</h2>${blkRows ? `<div>${blkRows}</div>` : `<p class="hint">${esc(t("blocked_empty"))}</p>`}</div></div>`;
-  h += linksPanel();
+  h += linksPanel() + mailPanel();
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
   h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
@@ -3693,6 +3711,7 @@ function openChat(id) {
   const w = whoIs(id); if (!w.uid || w.uid === ME.id) return;
   if (!S.chats[w.uid]) S.chats[w.uid] = { id: w.uid, nick: w.nick, msgs: [], unread: 0, t: 0, last: "", loaded: false };
   S.active = w.uid;
+  uiState();
   if (!isWide()) setView("chats"); else renderChat();
   const i = $("#msgInput"); if (i && isWide()) i.focus();
   loadChat(w.uid);
@@ -3777,8 +3796,8 @@ async function softRefresh() {
 }
 function addLive() {}
 function openDeepLink() {
-  const so = /^#\/(signup|linked|err)\/([A-Za-z0-9_-]{2,40})$/.exec(location.hash || "");
-  if (so) { try { history.replaceState(null, "", location.pathname); } catch (e) {} socialRoute(so[1], so[2]); return; }
+  const so = /^#\/(signup|linked|err|c|unsub|g)\/([A-Za-z0-9_-]{2,40})$/.exec(location.hash || "");
+  if (so) { try { history.replaceState(null, "", location.pathname); } catch (e) {} if (so[1] === "c") { if (ME) openChat(so[2]); else authSheet("login"); } else if (so[1] === "unsub") toast(t("lv_unsub_done")); else if (so[1] === "g") { if (GAMES[so[2]]) { setGame(so[2]); setView("feed"); renderAll(); } } else socialRoute(so[1], so[2]); return; }
   const m = /^#\/([pt])\/([A-Za-z0-9_-]{6,40})$/.exec(location.hash || ""); if (!m) return;
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   if (m[1] === "p") playerSheet(m[2]);
@@ -4143,6 +4162,60 @@ function profileFold() {
   });
 }
 function foldPanel(id) { LV.fold[id] = !LV.fold[id]; const el = document.getElementById(id); if (el) { el.classList.toggle("shut", !LV.fold[id]); const h = el.querySelector("h2.sec"); if (h) h.setAttribute("aria-expanded", String(!!LV.fold[id])); } }
+
+/* ---------- e-mail notifications and game subscriptions ---------- */
+Object.assign(T.ru, { lv_mail_t: "Письма на почту", lv_mail_msg: "Новые сообщения", lv_mail_msg_d: "Если вы не на сайте — не чаще раза в 30 минут на один чат.", lv_mail_inv: "Приглашения и заявки", lv_mail_inv_d: "Стак, команды, праки, комментарии.",
+  lv_subs_t: "Новые объявления", lv_subs_d: "Пришлём письмо, когда в игре кто-то ищет тиммейтов. Не чаще раза в 3 часа на игру.", lv_subs_none: "Вы ни на что не подписаны. Подписаться можно в ленте: выберите игру и нажмите «Сообщать о новых».",
+  lv_follow: "Сообщать о новых", lv_following: "Вы подписаны", lv_follow_match: "только моего уровня", lv_follow_on: g => "Пришлём письмо, когда в " + g + " кто-то будет искать тиммейтов", lv_follow_off: "Подписка отключена",
+  lv_unsub_done: "Готово, такие письма больше не придут", lv_no_email: "Письма приходят только на почту. Вы вошли через VK — почты в аккаунте нет." });
+Object.assign(T.en, { lv_mail_t: "Email notifications", lv_mail_msg: "New messages", lv_mail_msg_d: "When you are not on the site — at most once per 30 minutes per chat.", lv_mail_inv: "Invites and applications", lv_mail_inv_d: "Stacks, teams, scrims, comments.",
+  lv_subs_t: "New listings", lv_subs_d: "We email you when someone is looking for teammates in a game. At most once per 3 hours per game.", lv_subs_none: "No subscriptions. Pick a game in the feed and press “Notify me”.",
+  lv_follow: "Notify me", lv_following: "Subscribed", lv_follow_match: "my level only", lv_follow_on: g => "We will email you when someone looks for teammates in " + g, lv_follow_off: "Subscription off",
+  lv_unsub_done: "Done, you will not get these emails anymore", lv_no_email: "Notifications go to email. You signed in with VK, so there is no email in your account." });
+Object.assign(T.ru.lv_err, { need_email: "Для подписки нужна почта в аккаунте." });
+Object.assign(T.en.lv_err, { need_email: "Subscriptions need an email in your account." });
+
+function mailPanel() {
+  if (!ME.email) return `<div class="panel" id="ps-mail"><h2 class="sec">${esc(t("lv_mail_t"))}</h2><p class="hint">${esc(t("lv_no_email"))}</p></div>`;
+  const mp = ME.mailp || { msg: true, inv: true };
+  const sw = (k, title, desc) => `<label class="lv-sw"><span class="txt"><b>${esc(title)}</b><span>${esc(desc)}</span></span><input type="checkbox" data-mailp="${k}"${mp[k] ? " checked" : ""}><i aria-hidden="true"></i></label>`;
+  const subs = Object.keys(ME.subs || {}).filter(g => GAMES[g]);
+  const rows = subs.map(g => `<div class="lv-subrow" style="--g:var(${GAMES[g].color})"><span class="gtag"><i></i>${esc(gshort(g))}</span><span class="hint">${ME.subs[g].match ? esc(t("lv_follow_match")) : ""}</span><span class="sp"></span><button class="btn ghost small" data-action="lv-unfollow" data-g="${g}">${esc(S.lang === "ru" ? "Отписаться" : "Unsubscribe")}</button></div>`).join("");
+  return `<div class="panel" id="ps-mail"><h2 class="sec">${esc(t("lv_mail_t"))}</h2><div class="lv-sws">${sw("msg", t("lv_mail_msg"), t("lv_mail_msg_d"))}${sw("inv", t("lv_mail_inv"), t("lv_mail_inv_d"))}</div>
+<div class="field" style="gap:6px"><span class="lbl">${esc(t("lv_subs_t"))}</span><p class="hint" style="margin:0">${esc(t("lv_subs_d"))}</p>${rows || `<p class="hint">${esc(t("lv_subs_none"))}</p>`}</div></div>`;
+}
+async function setMailPref(k, on) {
+  const r = await api("POST", "/me/mail", { [k]: on });
+  if (!r.ok) { toast(errText(r)); renderProfile(); return; }
+  adoptUser(r.user);
+}
+async function follow(g, on, match) {
+  if (!ME) { authSheet("login"); return; }
+  if (!ME.email) { toast(t("lv_no_email")); return; }
+  const r = await api("POST", "/subs", { game: g, on, match: !!match });
+  if (!r.ok) { toast(errText(r)); return; }
+  adoptUser(r.user); followBtn(); if (S.view === "profile") renderProfile();
+  toast(on ? t("lv_follow_on", gname(g)) : t("lv_follow_off"));
+}
+function followSheet(g) {
+  if ((ME.subs || {})[g]) { follow(g, false); return; }
+  openSheet(t("lv_follow") + " · " + gshort(g), `<p class="lv-lead">${esc(t("lv_subs_d"))}</p><label class="check"><input type="checkbox" id="flMatch" checked> ${esc(S.lang === "ru" ? "Только игроки моего уровня" : "Only players of my level")}</label>`,
+    `<button class="btn ghost" data-action="close-modal">${esc(t("cancel"))}</button><button class="btn primary" id="flGo">${esc(t("lv_follow"))}</button>`, ov => {
+      ov.querySelector("#flGo").addEventListener("click", () => { const m = ov.querySelector("#flMatch").checked; closeModal(); follow(g, true, m); });
+    });
+}
+function followBtn() {
+  const head = $(".feedhead"); if (!head) return;
+  const old = head.querySelector(".lv-follow"); if (old) old.remove();
+  if (S.view !== "feed" || S.game === "all") return;
+  const on = !!(ME && (ME.subs || {})[S.game]);
+  head.insertAdjacentHTML("beforeend", `<button class="btn ghost small lv-follow${on ? " on" : ""}" data-action="lv-follow" data-g="${S.game}">${on ? ICON.check + esc(t("lv_following")) : ICON.bell + esc(t("lv_follow"))}</button>`);
+}
+function renderFeed() { renderFeedCore(); followBtn(); }
+document.addEventListener("change", e => { const el = e.target.closest && e.target.closest("[data-mailp]"); if (el) setMailPref(el.dataset.mailp, el.checked); });
+document.addEventListener("click", e => { const a = e.target.closest("[data-action]"); if (!a) return;
+  if (a.dataset.action === "lv-follow") { e.stopPropagation(); if (!ME) authSheet("login"); else followSheet(a.dataset.g); }
+  if (a.dataset.action === "lv-unfollow") { e.stopPropagation(); follow(a.dataset.g, false); } }, true);
 
 /* ================= boot ================= */
 const teamsSoon = () => refreshTeams().then(teamsDraw);

@@ -14,6 +14,7 @@ class MemDb {
     return out.sort((a, b) => (a.sk < b.sk ? -1 : a.sk > b.sk ? 1 : 0));
   }
   async ping() { return true; }
+  async scan() { return [...this.m].map(([k, v]) => { const i = k.indexOf("\u0000"); return { pk: k.slice(0, i), sk: k.slice(i + 1), d: v }; }); }
 }
 
 class DocDb {
@@ -79,6 +80,17 @@ class DocDb {
     return out.sort((a, b) => (a.sk < b.sk ? -1 : a.sk > b.sk ? 1 : 0));
   }
   async ping() { await this.get("sys", "ping"); return true; }
+  // whole table, raw JSON strings (for backups)
+  async scan() {
+    const out = []; let start;
+    for (let page = 0; page < 10000; page++) {
+      const body = { TableName: this.table, Limit: 1000 }; if (start) body.ExclusiveStartKey = start;
+      const r = await this.run("Scan", body);
+      for (const it of r.Items || []) out.push({ pk: it.pk.S, sk: it.sk.S, d: it.d.S });
+      start = r.LastEvaluatedKey; if (!start) break;
+    }
+    return out;
+  }
 }
 
 module.exports = { MemDb, DocDb };

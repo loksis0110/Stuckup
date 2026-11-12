@@ -20,7 +20,7 @@ function client() {
   };
 }
 async function signup(c, email, nick) {
-  const r = await c("POST", "/api/auth/register", { email, password: "password1", nick, consent: true });
+  const r = await c("POST", "/api/auth/register", { email, password: "password1", nick, consent: true }, { "x-smoke-key": "k-test" });
   assert.equal(r.status, 200, JSON.stringify(r.json));
   assert.match(r.json.devCode, /^\d{6}$/);
   const v = await c("POST", "/api/auth/verify", { email, code: r.json.devCode });
@@ -329,4 +329,43 @@ test("telegram sign-in, notifications, rank verification (mocked services)", asy
     assert.equal((await a("DELETE", "/api/me", { confirm: "wrong" })).json.error, "bad_password");
     assert.equal((await a("DELETE", "/api/me", { confirm: "TgKaito" })).status, 200);
   } finally { globalThis.fetch = real; delete process.env.TELEGRAM_BOT_TOKEN; delete process.env.FACEIT_API_KEY; }
+});
+
+test("mail notifications, game subscriptions, unsubscribe, backups", async () => {
+  const sent = [];
+  const mailMod = require("../server/mail.js"); const realSend = mailMod.sendNotice, realMode = mailMod.mode;
+  mailMod.sendNotice = async m => { sent.push(m); }; mailMod.mode = () => "smtp";
+  try {
+    const { handler } = require("../server/index.js");
+    const cron = () => handler({ messages: [{ details: { trigger_id: "t" } }] }, {});
+    const a = client(), b = client();
+    const sa = await signup(a, "ma@smoke.stuckup.invalid", "MailA"), sb = await signup(b, "mb@smoke.stuckup.invalid", "MailB");
+    assert.equal((await b("GET", "/api/me")).json.user.mailp.msg, true);
+    // B follows CS2 near their own rank
+    await b("PUT", "/api/me", { profile: { dc: "mail.b", ranks: { cs2: { premier: { v: 14000 } } } } });
+    assert.equal((await b("POST", "/api/subs", { game: "cs2", on: true, match: true })).json.user.subs.cs2.match, true);
+    await a("PUT", "/api/me", { profile: { dc: "mail.a" } });
+    await a("POST", "/api/posts", POST); // premier 15200: close enough
+    await a("POST", "/api/chats/" + sb.id, { text: "привет, го?" });
+    await a("POST", "/api/chats/" + sb.id, { text: "ау" }); // second message within 30 min: no second letter
+    await a("POST", "/api/stack", { uid: sb.id, game: "cs2", on: true });
+    await cron();
+    const toB = sent.filter(m => m.to === "mb@smoke.stuckup.invalid");
+    assert.deepEqual(toB.map(m => m.subject.split(" ")[0]).length, 3, JSON.stringify(toB.map(m => m.subject)));
+    assert.ok(toB.some(m => /CS2: MailA ищет/.test(m.subject) && m.button.url.includes("/#/p/")));
+    assert.ok(toB.some(m => /MailA написал/.test(m.subject) && m.button.url.endsWith("/#/c/" + sa.id)));
+    assert.ok(toB.some(m => /зовёт вас в стак/.test(m.subject)));
+    // unsubscribe link from the letter turns that kind off
+    const msgLetter = toB.find(m => /написал/.test(m.subject)), q = Object.fromEntries(new URL(msgLetter.unsub).searchParams);
+    const un = await client()("GET", "/api/unsub", undefined, { __query: q }); assert.equal(un.raw.statusCode, 302);
+    assert.equal((await b("GET", "/api/me")).json.user.mailp.msg, false);
+    assert.equal((await client()("GET", "/api/unsub", undefined, { __query: Object.assign({}, q, { s: "forged" }) })).raw.headers.Location, "/#/err/link_fail");
+    // far-away ranks do not trigger a "match" subscription letter
+    const c = client(); await signup(c, "mc@smoke.stuckup.invalid", "MailC"); await c("PUT", "/api/me", { profile: { dc: "mail.c" } });
+    sent.length = 0; await c("POST", "/api/posts", Object.assign({}, POST, { r: { sys: "premier", v: 3000 } })); await cron();
+    assert.equal(sent.filter(m => m.to === "mb@smoke.stuckup.invalid").length, 0);
+    // backup goes to storage (memory in dev) once a day
+    const h = (await client()("GET", "/api/health")).json; assert.ok(h.backup && h.backup.items > 5, JSON.stringify(h.backup));
+    assert.equal((await b("POST", "/api/subs", { game: "cs2", on: false })).json.user.subs.cs2, undefined);
+  } finally { mailMod.sendNotice = realSend; mailMod.mode = realMode; }
 });

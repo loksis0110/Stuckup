@@ -22,6 +22,7 @@ function buildMessage(m) {
     "Message-ID: <" + crypto.randomBytes(12).toString("hex") + "@" + domain + ">",
     "MIME-Version: 1.0",
     "Auto-Submitted: auto-generated",
+    ...(m.headers || []),
     'Content-Type: multipart/alternative; boundary="' + b + '"',
     "",
     "--" + b, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64lines(m.text),
@@ -100,6 +101,22 @@ function codeMessage(to, code, lang, kind) {
     '<p style="font-size:12px;color:#888;margin:24px 0 0">Stuckup · <a href="https://stuckup.ru" style="color:#888">stuckup.ru</a></p></div>';
   return buildMessage({ from: c.from, fromName: "Stuckup", to, subject: t.subject, text, html });
 }
+const escH = x => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Notification letter: a title, a few lines, one button and an unsubscribe link
+function noticeMessage(o) {
+  const c = cfg(), ru = o.lang !== "en";
+  const foot = ru ? "Вы получили письмо, потому что зарегистрированы на stuckup.ru." : "You get this email because you have an account at stuckup.ru.";
+  const unsub = ru ? "Отписаться от таких писем" : "Unsubscribe from these emails";
+  const text = o.title + "\n\n" + o.lines.join("\n") + "\n\n" + o.button.text + ": " + o.button.url + "\n\n—\n" + foot + "\n" + unsub + ": " + o.unsub + "\n";
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#111">' +
+    '<div style="font-weight:700;font-size:16px;letter-spacing:.08em">STUCK<span style="color:#d18f00">UP</span></div>' +
+    '<h1 style="font-size:20px;line-height:1.3;margin:22px 0 10px">' + escH(o.title) + "</h1>" +
+    o.lines.map(l => '<p style="font-size:15px;line-height:1.5;margin:0 0 8px;color:#333">' + escH(l) + "</p>").join("") +
+    '<p style="margin:22px 0"><a href="' + escH(o.button.url) + '" style="display:inline-block;background:#ffb000;color:#1a1300;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:10px">' + escH(o.button.text) + "</a></p>" +
+    '<p style="font-size:12px;color:#888;line-height:1.5;margin:28px 0 0">' + escH(foot) + '<br><a href="' + escH(o.unsub) + '" style="color:#888">' + escH(unsub) + "</a></p></div>";
+  return buildMessage({ from: c.from, fromName: "Stuckup", to: o.to, subject: o.subject, text, html, headers: ["List-Unsubscribe: <" + o.unsub + ">", "List-Unsubscribe-Post: List-Unsubscribe=One-Click"] });
+}
+async function sendNotice(o, opts) { await smtpSend(cfg(), o.to, noticeMessage(o), opts); }
 async function sendCode(to, code, lang, kind, opts) { await smtpSend(cfg(), to, codeMessage(to, code, lang, kind), opts); }
 
-module.exports = { mode, sendCode, smtpSend, buildMessage, cfg };
+module.exports = { mode, sendCode, sendNotice, noticeMessage, smtpSend, buildMessage, cfg };

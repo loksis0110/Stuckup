@@ -145,7 +145,7 @@ async function pushProfile() {
   return r;
 }
 function adoptUser(u) {
-  ME = { id: u.id, email: u.email, nick: u.nick, hasPass: u.hasPass !== false, tg: u.tg || null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit || null, ver: u.ver || {} };
+  ME = { id: u.id, email: u.email, nick: u.nick, hasPass: u.hasPass !== false, tg: u.tg || null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit || null, ver: u.ver || {}, mailp: u.mailp || null, subs: u.subs || {} };
   S.profile = Object.assign(blankProfile(S.lang), u.profile, { nick: u.nick });
   Object.keys(ME.ver).forEach(sys => { S.profile.ver[sys] = "api"; });
   GAME_KEYS.forEach(g => { if (!S.profile.ranks[g]) S.profile.ranks[g] = {}; });
@@ -241,7 +241,7 @@ function pickCard(x) {
   const p = x.p, id = esc(p.id);
   return `<div class="pick" style="--g:var(${GAMES[p.game].color})"><div class="pick-h"><button class="avbtn" data-action="player" data-id="${id}" aria-label="${esc(p.nick)}">${avatar(p.nick, false)}</button><div class="who"><div class="nick"><button class="nickbtn" data-action="player" data-id="${id}"><span class="n">${esc(p.nick)}</span></button></div><div class="meta"><span class="gtag"><i></i>${esc(gshort(p.game))}</span>${miniRank(p.r)}</div></div></div><div class="pick-f"><span class="why">${esc(x.why.map(w => t("picks_why")[w]).join(" · "))}</span><button class="btn primary small" data-action="open-chat" data-id="${id}">${esc(t("write"))}</button></div></div>`;
 }
-function renderFeed() {
+function renderFeedCore() {
   if (!LV.ready) {
     $("#count").textContent = "";
     $("#list").innerHTML = LV.loadErr ? `<div class="empty"><span>${esc(t("lv_load_err"))}</span><button class="btn small" data-action="lv-retry">${ICON.refresh}${esc(t("lv_retry"))}</button></div>`
@@ -560,7 +560,7 @@ function renderProfile() {
   const favRows = LV.favList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="iconbtn fav" data-action="fav" data-id="${esc(x.id)}" aria-label="${esc(t("fav_on"))}" title="${esc(t("fav_on"))}">${ICON.star}</button></div>`).join("");
   const blkRows = LV.blockList.map(x => `<div class="prow">${avatar(x.nick, false)}<span class="txt"><b>${esc(x.nick)}</b></span><button class="btn ghost small" data-action="unblock" data-id="${esc(x.id)}">${esc(t("unblock"))}</button></div>`).join("");
   h += `<div class="panel" id="ps-people"><div class="field"><h2 class="sec">${esc(t("favs_title"))}</h2>${favRows ? `<div>${favRows}</div>` : `<p class="hint">${esc(t("favs_empty"))}</p>`}</div><div class="field"><h2 class="sec">${esc(t("blocked_title"))}</h2>${blkRows ? `<div>${blkRows}</div>` : `<p class="hint">${esc(t("blocked_empty"))}</p>`}</div></div>`;
-  h += linksPanel();
+  h += linksPanel() + mailPanel();
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
   h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
@@ -639,6 +639,7 @@ function openChat(id) {
   const w = whoIs(id); if (!w.uid || w.uid === ME.id) return;
   if (!S.chats[w.uid]) S.chats[w.uid] = { id: w.uid, nick: w.nick, msgs: [], unread: 0, t: 0, last: "", loaded: false };
   S.active = w.uid;
+  uiState();
   if (!isWide()) setView("chats"); else renderChat();
   const i = $("#msgInput"); if (i && isWide()) i.focus();
   loadChat(w.uid);
@@ -723,8 +724,8 @@ async function softRefresh() {
 }
 function addLive() {}
 function openDeepLink() {
-  const so = /^#\/(signup|linked|err)\/([A-Za-z0-9_-]{2,40})$/.exec(location.hash || "");
-  if (so) { try { history.replaceState(null, "", location.pathname); } catch (e) {} socialRoute(so[1], so[2]); return; }
+  const so = /^#\/(signup|linked|err|c|unsub|g)\/([A-Za-z0-9_-]{2,40})$/.exec(location.hash || "");
+  if (so) { try { history.replaceState(null, "", location.pathname); } catch (e) {} if (so[1] === "c") { if (ME) openChat(so[2]); else authSheet("login"); } else if (so[1] === "unsub") toast(t("lv_unsub_done")); else if (so[1] === "g") { if (GAMES[so[2]]) { setGame(so[2]); setView("feed"); renderAll(); } } else socialRoute(so[1], so[2]); return; }
   const m = /^#\/([pt])\/([A-Za-z0-9_-]{6,40})$/.exec(location.hash || ""); if (!m) return;
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   if (m[1] === "p") playerSheet(m[2]);

@@ -1,0 +1,54 @@
+name: monitor
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check stuckup.ru
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+        run: |
+          python3 - <<'PY'
+          import json, os, smtplib, ssl, time, urllib.request
+          from email.message import EmailMessage
+          problem = None
+          for attempt in range(3):
+              try:
+                  with urllib.request.urlopen("https://stuckup.ru/api/health", timeout=20) as r:
+                      h = json.load(r)
+                  if not h.get("ok"):
+                      problem = "база данных недоступна: " + str(h.get("err"))
+                  elif h.get("mail") != "smtp":
+                      problem = "отправка писем не настроена"
+                  else:
+                      b = h.get("backup") or {}
+                      if b.get("t") and time.time() * 1000 - b["t"] > 36 * 3600 * 1000:
+                          problem = "резервная копия не обновлялась больше 36 часов" + (": " + b["err"] if b.get("err") else "")
+                      else:
+                          problem = None
+                  if problem is None:
+                      break
+              except Exception as e:
+                  problem = "сайт не отвечает: " + str(e)[:200]
+              time.sleep(20)
+          if problem:
+              print("PROBLEM:", problem)
+              to = os.environ.get("ALERT_EMAIL") or os.environ.get("SMTP_USER")
+              if to and os.environ.get("SMTP_PASS"):
+                  m = EmailMessage()
+                  m["From"] = os.environ["SMTP_USER"]; m["To"] = to; m["Subject"] = "Stuckup: проблема на сайте"
+                  m.set_content("Автопроверка stuckup.ru нашла проблему:\n\n" + problem + "\n\nПроверка повторяется каждые 30 минут.")
+                  with smtplib.SMTP_SSL(os.environ.get("SMTP_HOST") or "smtp.yandex.ru", 465, context=ssl.create_default_context(), timeout=30) as s:
+                      s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"]); s.send_message(m)
+              raise SystemExit(1)
+          print("OK")
+          PY

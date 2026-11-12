@@ -43,3 +43,57 @@ function profileFold() {
   });
 }
 function foldPanel(id) { LV.fold[id] = !LV.fold[id]; const el = document.getElementById(id); if (el) { el.classList.toggle("shut", !LV.fold[id]); const h = el.querySelector("h2.sec"); if (h) h.setAttribute("aria-expanded", String(!!LV.fold[id])); } }
+
+/* ---------- e-mail notifications and game subscriptions ---------- */
+Object.assign(T.ru, { lv_mail_t: "Письма на почту", lv_mail_msg: "Новые сообщения", lv_mail_msg_d: "Если вы не на сайте — не чаще раза в 30 минут на один чат.", lv_mail_inv: "Приглашения и заявки", lv_mail_inv_d: "Стак, команды, праки, комментарии.",
+  lv_subs_t: "Новые объявления", lv_subs_d: "Пришлём письмо, когда в игре кто-то ищет тиммейтов. Не чаще раза в 3 часа на игру.", lv_subs_none: "Вы ни на что не подписаны. Подписаться можно в ленте: выберите игру и нажмите «Сообщать о новых».",
+  lv_follow: "Сообщать о новых", lv_following: "Вы подписаны", lv_follow_match: "только моего уровня", lv_follow_on: g => "Пришлём письмо, когда в " + g + " кто-то будет искать тиммейтов", lv_follow_off: "Подписка отключена",
+  lv_unsub_done: "Готово, такие письма больше не придут", lv_no_email: "Письма приходят только на почту. Вы вошли через VK — почты в аккаунте нет." });
+Object.assign(T.en, { lv_mail_t: "Email notifications", lv_mail_msg: "New messages", lv_mail_msg_d: "When you are not on the site — at most once per 30 minutes per chat.", lv_mail_inv: "Invites and applications", lv_mail_inv_d: "Stacks, teams, scrims, comments.",
+  lv_subs_t: "New listings", lv_subs_d: "We email you when someone is looking for teammates in a game. At most once per 3 hours per game.", lv_subs_none: "No subscriptions. Pick a game in the feed and press “Notify me”.",
+  lv_follow: "Notify me", lv_following: "Subscribed", lv_follow_match: "my level only", lv_follow_on: g => "We will email you when someone looks for teammates in " + g, lv_follow_off: "Subscription off",
+  lv_unsub_done: "Done, you will not get these emails anymore", lv_no_email: "Notifications go to email. You signed in with VK, so there is no email in your account." });
+Object.assign(T.ru.lv_err, { need_email: "Для подписки нужна почта в аккаунте." });
+Object.assign(T.en.lv_err, { need_email: "Subscriptions need an email in your account." });
+
+function mailPanel() {
+  if (!ME.email) return `<div class="panel" id="ps-mail"><h2 class="sec">${esc(t("lv_mail_t"))}</h2><p class="hint">${esc(t("lv_no_email"))}</p></div>`;
+  const mp = ME.mailp || { msg: true, inv: true };
+  const sw = (k, title, desc) => `<label class="lv-sw"><span class="txt"><b>${esc(title)}</b><span>${esc(desc)}</span></span><input type="checkbox" data-mailp="${k}"${mp[k] ? " checked" : ""}><i aria-hidden="true"></i></label>`;
+  const subs = Object.keys(ME.subs || {}).filter(g => GAMES[g]);
+  const rows = subs.map(g => `<div class="lv-subrow" style="--g:var(${GAMES[g].color})"><span class="gtag"><i></i>${esc(gshort(g))}</span><span class="hint">${ME.subs[g].match ? esc(t("lv_follow_match")) : ""}</span><span class="sp"></span><button class="btn ghost small" data-action="lv-unfollow" data-g="${g}">${esc(S.lang === "ru" ? "Отписаться" : "Unsubscribe")}</button></div>`).join("");
+  return `<div class="panel" id="ps-mail"><h2 class="sec">${esc(t("lv_mail_t"))}</h2><div class="lv-sws">${sw("msg", t("lv_mail_msg"), t("lv_mail_msg_d"))}${sw("inv", t("lv_mail_inv"), t("lv_mail_inv_d"))}</div>
+<div class="field" style="gap:6px"><span class="lbl">${esc(t("lv_subs_t"))}</span><p class="hint" style="margin:0">${esc(t("lv_subs_d"))}</p>${rows || `<p class="hint">${esc(t("lv_subs_none"))}</p>`}</div></div>`;
+}
+async function setMailPref(k, on) {
+  const r = await api("POST", "/me/mail", { [k]: on });
+  if (!r.ok) { toast(errText(r)); renderProfile(); return; }
+  adoptUser(r.user);
+}
+async function follow(g, on, match) {
+  if (!ME) { authSheet("login"); return; }
+  if (!ME.email) { toast(t("lv_no_email")); return; }
+  const r = await api("POST", "/subs", { game: g, on, match: !!match });
+  if (!r.ok) { toast(errText(r)); return; }
+  adoptUser(r.user); followBtn(); if (S.view === "profile") renderProfile();
+  toast(on ? t("lv_follow_on", gname(g)) : t("lv_follow_off"));
+}
+function followSheet(g) {
+  if ((ME.subs || {})[g]) { follow(g, false); return; }
+  openSheet(t("lv_follow") + " · " + gshort(g), `<p class="lv-lead">${esc(t("lv_subs_d"))}</p><label class="check"><input type="checkbox" id="flMatch" checked> ${esc(S.lang === "ru" ? "Только игроки моего уровня" : "Only players of my level")}</label>`,
+    `<button class="btn ghost" data-action="close-modal">${esc(t("cancel"))}</button><button class="btn primary" id="flGo">${esc(t("lv_follow"))}</button>`, ov => {
+      ov.querySelector("#flGo").addEventListener("click", () => { const m = ov.querySelector("#flMatch").checked; closeModal(); follow(g, true, m); });
+    });
+}
+function followBtn() {
+  const head = $(".feedhead"); if (!head) return;
+  const old = head.querySelector(".lv-follow"); if (old) old.remove();
+  if (S.view !== "feed" || S.game === "all") return;
+  const on = !!(ME && (ME.subs || {})[S.game]);
+  head.insertAdjacentHTML("beforeend", `<button class="btn ghost small lv-follow${on ? " on" : ""}" data-action="lv-follow" data-g="${S.game}">${on ? ICON.check + esc(t("lv_following")) : ICON.bell + esc(t("lv_follow"))}</button>`);
+}
+function renderFeed() { renderFeedCore(); followBtn(); }
+document.addEventListener("change", e => { const el = e.target.closest && e.target.closest("[data-mailp]"); if (el) setMailPref(el.dataset.mailp, el.checked); });
+document.addEventListener("click", e => { const a = e.target.closest("[data-action]"); if (!a) return;
+  if (a.dataset.action === "lv-follow") { e.stopPropagation(); if (!ME) authSheet("login"); else followSheet(a.dataset.g); }
+  if (a.dataset.action === "lv-unfollow") { e.stopPropagation(); follow(a.dataset.g, false); } }, true);
