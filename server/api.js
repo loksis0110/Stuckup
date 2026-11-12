@@ -30,7 +30,7 @@ module.exports = function makeApi(db, opts) {
   async function currentUser(req) {
     const s = A.readSession(req.cookies[A.COOKIE]); if (!s) return null;
     const u = await db.get("u", s.uid);
-    if (!u || (u.sv || 0) !== s.sv || u.banned) return null;
+    if (!u || (u.sv || 0) !== s.sv || V.banned(u)) return null;
     return u;
   }
   async function need(req) { const u = await currentUser(req); if (!u) throw new Http(401, "auth"); return u; }
@@ -153,7 +153,7 @@ module.exports = function makeApi(db, opts) {
     await limit("login:" + email, 10, 600000);
     const idx = email ? await db.get("e", email) : null, u = idx ? await db.get("u", idx.uid) : null;
     if (!u || !u.pass || !(await A.checkPassword(pw, u.pass))) throw new Http(401, "bad_login");
-    if (u.banned) throw new Http(403, "banned");
+    if (V.banned(u)) throw new Http(403, "banned", { until: u.banned.until || 0 });
     return { body: { user: me(u), posts: await myPosts(u) }, cookies: login(u) };
   }
   async function reset(req) {
@@ -173,7 +173,7 @@ module.exports = function makeApi(db, opts) {
     await checkCode(email, b.code, "reset");
     const idx = await db.get("e", email), u = idx ? await db.get("u", idx.uid) : null;
     if (!u) throw new Http(400, "code_expired");
-    if (u.banned) throw new Http(403, "banned");
+    if (V.banned(u)) throw new Http(403, "banned", { until: u.banned.until || 0 });
     u.pass = await A.hashPassword(pass); u.sv = (u.sv || 0) + 1; u.ev = true;
     await db.put("u", u.id, u); await db.del("c", email);
     return { body: { user: me(u), posts: await myPosts(u) }, cookies: login(u) };
@@ -229,6 +229,11 @@ module.exports = function makeApi(db, opts) {
   async function delMe(req) {
     const u = await need(req);
     if (u.pass ? !(await A.checkPassword(String(req.json.password == null ? "" : req.json.password), u.pass)) : String(req.json.confirm || "") !== u.nick) throw new Http(401, "bad_password");
+    await removeAccount(u);
+    return { body: { ok: true }, cookies: [A.clearCookie()] };
+  }
+  // deletes an account with everything that belongs to it (used by the user and by the admin)
+  async function removeAccount(u) {
     for (const g of Object.keys(u.posts || {})) await db.del("p", u.posts[g]);
     await jobs.userGone(u);
     for (const row of await db.list("pr")) if (row.d.uid === u.id) await db.del("pr", row.sk);
@@ -244,7 +249,10 @@ module.exports = function makeApi(db, opts) {
     if (u.email) await db.del("e", u.email);
     await db.del("n", V.nickKey(u.nick)); await db.del("u", u.id);
     feed = null; feedGen++;
-    return { body: { ok: true }, cookies: [A.clearCookie()] };
+  }
+  // daily counters for the admin dashboard
+  async function stat(field, n) {
+    try { const day = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10), d = (await db.get("st", day)) || {}; d[field] = (d[field] || 0) + (n || 1); await db.put("st", day, d); } catch (e) {}
   }
   async function setList(req, field) {
     const u = await need(req), b = req.json, id = String(b.uid || "");
@@ -287,6 +295,7 @@ module.exports = function makeApi(db, opts) {
     await db.put("p", post.id, post);
     await db.put("u", u.id, u);
     feed = null; feedGen++;
+    await stat("posts");
     try { await jobs.onPost(post, u); } catch (e) { console.error("mail subs:", e.message); }
     return { body: { post: view(post, u), user: me(u), replaced } };
   }
@@ -332,7 +341,11 @@ module.exports = function makeApi(db, opts) {
   function cidOf(a, b) { return a < b ? a + "~" + b : b + "~" + a; }
   async function listChats(req) {
     const u = await need(req), now = Date.now();
-    if (req.query.beat === "1") await db.put("on", u.id, { t: now });
+    if (req.query.beat === "1") {
+      const prev = await db.get("on", u.id), dayStart = Math.floor((now + 3 * 3600000) / 86400000) * 86400000 - 3 * 3600000;
+      if (!prev || prev.t < dayStart) await stat("active");
+      await db.put("on", u.id, { t: now });
+    }
     const rows = await db.list("cv:" + u.id), on = (feed && feed.on) || {};
     const nc = await db.get("nc", u.id);
     return { body: { chats: rows.map(r => Object.assign({}, r.d, { on: !!on[r.d.id] })), notifs: (nc && nc.n) || 0, now } };
@@ -402,6 +415,7 @@ module.exports = function makeApi(db, opts) {
       const seen = await db.get("on", uid);
       if (!seen || now - seen.t > ONLINE_MS) { await social.pushMessage(target, u.nick, text); const cv = await db.get("cv:" + uid, u.id); if (cv) { cv.tgAt = now; await db.put("cv:" + uid, u.id, cv); } }
     }
+    await stat("msgs");
     const away = await db.get("on", uid);
     if (!away || now - away.t > ONLINE_MS) { try { await jobs.onMessage(target, u, text || short, ["cv:" + uid, u.id]); } catch (e) { console.error("mail message:", e.message); } }
     return { body: { msg: msgView({ id, from: u.id, text, t: now, media }, u.id) } };
@@ -483,7 +497,8 @@ module.exports = function makeApi(db, opts) {
   social = require("./social")({ db, Http, need, limit, me, loginCookies: login, hooks: { myPosts } });
   storage = require("./storage")(() => db.token);
   jobs = require("./jobs")({ db, Http, need, me, storage, noteText: social.noteText, sendNotice: opts.sendNotice });
-  const admin = require("./admin")({ db, Http, limit, notify, hooks: { feedDirty: () => { feed = null; feedGen++; }, teamsDirty: () => teams.dirty(), viewUrl: k => storage.viewUrl(k), delMedia: k => storage.del(k) } });
+  const admin = require("./admin")({ db, Http, limit, notify, hooks: { feedDirty: () => { feed = null; feedGen++; }, teamsDirty: () => teams.dirty(), viewUrl: k => storage.viewUrl(k), delMedia: k => storage.del(k),
+    removeAccount, disband: tm => teams.disband(tm), loadFeed, backup: () => jobs.backup(true), backupInfo: () => jobs.backupInfo(), mailMode: () => mail.mode(), media: () => storage.media(), renamed: u => teams.userRenamed(u), myPosts } });
 
   function originOk(origin, h) {
     const o = String(origin).replace(/^https?:\/\//, "").toLowerCase();

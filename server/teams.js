@@ -290,5 +290,5 @@ module.exports = function makeTeams(ctx) {
     ["POST", new RegExp("^/api/scrims/" + ID + "/report$"), report],
     ["POST", new RegExp("^/api/scrims/" + ID + "/confirm$"), confirm]
   ];
-  return { routes, userGone, userRenamed, dirty };
+  return { routes, userGone, userRenamed, dirty, disband };
 };

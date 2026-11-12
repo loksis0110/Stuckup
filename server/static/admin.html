@@ -4,99 +4,498 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Админка — Stuckup</title>
+<title>Админка Stuckup</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
-:root{--bg:#0b0d12;--panel:#141822;--line:#262d3a;--fg:#eef1f6;--fg2:#c3cad6;--muted:#8a93a5;--accent:#ffb000;--danger:#ff6b6b;--ok:#3ecf8e}
+@font-face{font-family:"Unbounded";src:url(/fonts/Unbounded.woff) format("woff");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Onest";src:url(/fonts/Onest.woff) format("woff");font-weight:100 900;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url(/fonts/JetBrainsMono.woff) format("woff");font-weight:100 900;font-display:swap}
+:root{--bg:#0b0d12;--bg2:#0f1218;--panel:#141822;--panel2:#1a1f2b;--line:#252c3a;--line2:#323b4d;--fg:#eef1f6;--fg2:#c3cad6;--muted:#8a93a5;--faint:#646d7e;
+--accent:#ffb000;--accent-ink:#1a1300;--accent-soft:rgba(255,176,0,.12);--ok:#3ecf8e;--ok-soft:rgba(62,207,142,.12);--bad:#ff6b6b;--bad-soft:rgba(255,107,107,.12);--info:#5aa9ff;--info-soft:rgba(90,169,255,.12);
+--f-d:"Unbounded",system-ui,sans-serif;--f:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--f-m:"JetBrains Mono",ui-monospace,monospace;--r:14px}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f4f5f8;--bg2:#eceef3;--panel:#fff;--panel2:#f6f7fa;--line:#e1e4eb;--line2:#cfd4de;--fg:#12151c;--fg2:#323a49;--muted:#5f6878;--faint:#8a93a3;--accent:#c98a00;--accent-ink:#fff;--accent-soft:rgba(201,138,0,.12)}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:20px 16px 60px}
-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-h1{font-size:20px;margin:0;flex:1;letter-spacing:.04em}
-h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
-.kpi b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
-.kpi span{font-size:12.5px;color:var(--muted)}
-.item{display:grid;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
-.item:first-child{border-top:0;padding-top:0}
-.item .h{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:baseline}
-.item .h span{color:var(--muted);font-size:13px}
-.tag{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--fg2)}
-.note{margin:0;color:var(--fg2);overflow-wrap:anywhere}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:14.5px/1.5 var(--f)}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.mono{font-family:var(--f-m);font-variant-numeric:tabular-nums}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.lcard{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px}
+.brand{display:flex;align-items:center;gap:10px;font:700 17px var(--f-d);letter-spacing:.08em}
+.brand b{color:var(--accent)}.bars{display:flex;gap:3px}.bars i{width:4px;height:18px;border-radius:2px;background:var(--accent);display:block}
+.lcard h1{font:600 15px var(--f);color:var(--muted);margin:6px 0 20px}
+.inp{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;outline:none;transition:border-color .15s}
+.inp:focus{border-color:var(--accent)}
+textarea.inp{resize:vertical;min-height:70px}
+.err{color:var(--bad);min-height:1.4em;margin:8px 0;font-size:13.5px}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);cursor:pointer;font-weight:550;white-space:nowrap;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--faint)}
+.btn.sm{height:30px;padding:0 10px;font-size:13px;border-radius:8px}
+.btn.pri{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+.btn.bad{color:var(--bad)}.btn.bad:hover{border-color:var(--bad)}
+.btn.ghost{background:none;border-color:transparent;color:var(--fg2)}.btn.ghost:hover{background:var(--panel2)}
+.btn:disabled{opacity:.5;cursor:default}
+kbd{font:500 11px var(--f-m);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 4px;color:var(--muted);margin-left:2px}
+/* layout */
+#app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+aside{position:sticky;top:0;height:100vh;border-right:1px solid var(--line);background:var(--bg2);display:flex;flex-direction:column;padding:18px 12px}
+aside .brand{padding:4px 10px 18px}
+nav.side{display:grid;gap:2px}
+nav.side button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--fg2);text-align:left}
+nav.side button:hover{background:var(--panel)}
+nav.side button[aria-current="page"]{background:var(--panel);color:var(--fg);box-shadow:inset 2px 0 0 var(--accent)}
+nav.side .cnt{margin-left:auto;font:600 11.5px var(--f-m);background:var(--bad);color:#fff;border-radius:999px;padding:1px 7px}
+nav.side .cnt.z{display:none}
+aside .foot{margin-top:auto;padding:10px;display:grid;gap:8px;font-size:12px;color:var(--faint)}
+main{min-width:0;padding:26px 30px 60px}
+.ph{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.ph h2{font:700 22px var(--f-d);margin:0;letter-spacing:-.01em}
+.ph .sub{color:var(--muted);font-size:13.5px}
+.ph .sp{flex:1}
+.top-m{display:none}
+@media (max-width:900px){
+  #app{grid-template-columns:1fr}
+  aside{display:none}
+  .top-m{display:flex;position:sticky;top:0;z-index:20;background:var(--bg2);border-bottom:1px solid var(--line);padding:10px 12px;gap:8px;overflow-x:auto;scrollbar-width:none}
+  .top-m button{flex:none;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;cursor:pointer;color:var(--fg2);display:flex;gap:6px;align-items:center}
+  .top-m button[aria-current="page"]{border-color:var(--accent);color:var(--fg)}
+  .top-m .cnt{font:600 11px var(--f-m);background:var(--bad);color:#fff;border-radius:999px;padding:0 6px}.top-m .cnt.z{display:none}
+  main{padding:18px 16px 60px}
+}
+/* cards */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.kpi{padding:14px 16px;display:grid;gap:4px;cursor:default}
+.kpi.link{cursor:pointer}.kpi.link:hover{border-color:var(--line2)}
+.kpi .l{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .v{font:700 26px var(--f-d);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:12.5px;color:var(--muted)}.kpi .d b{color:var(--ok);font-weight:600}
+.kpi.alert{border-color:color-mix(in oklab,var(--bad) 60%,var(--line));background:linear-gradient(var(--bad-soft),var(--bad-soft)),var(--panel)}
+.kpi.alert .v{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-bottom:12px}
+.chart{padding:16px}
+.chart h3,.sec h3{margin:0 0 2px;font:600 14px var(--f)}
+.chart .meta{display:flex;justify-content:space-between;color:var(--muted);font-size:12.5px;margin-bottom:12px}
+.chart .meta b{font:700 18px var(--f-d);color:var(--fg)}
+.bars2{display:flex;align-items:flex-end;gap:4px;height:110px}
+.bars2 .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+.bars2 .b i{display:block;background:var(--c,var(--accent));border-radius:4px 4px 1px 1px;min-height:2px;opacity:.9;transition:opacity .15s}
+.bars2 .b:last-child i{opacity:1;box-shadow:0 0 0 1px var(--fg) inset}
+.bars2 .b:hover i{opacity:1}
+.bars2 .b .tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);font-size:11.5px;padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .1s;z-index:2}
+.bars2 .b:hover .tip{opacity:1}
+.axis{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;margin-top:6px}
+.hbar{display:grid;grid-template-columns:90px 1fr 34px;gap:10px;align-items:center;font-size:13px;margin:7px 0}
+.hbar .t{height:8px;border-radius:99px;background:var(--bg2);overflow:hidden}.hbar .t i{display:block;height:100%;border-radius:99px;background:var(--c)}
+.hbar .n{text-align:right;color:var(--muted)}
+.sysrow{display:flex;flex-wrap:wrap;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--fg2);background:var(--panel)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.pill.ok .dot{background:var(--ok)}.pill.bad .dot{background:var(--bad)}.pill.warn .dot{background:var(--accent)}
+.chip{display:inline-flex;align-items:center;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--fg2);border:1px solid var(--line)}
+.chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.chip.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}.chip.info{background:var(--info-soft);color:var(--info);border-color:transparent}
+.g{display:inline-flex;align-items:center;gap:6px;font:500 12px var(--f-m);color:var(--fg2)}.g i{width:8px;height:8px;border-radius:2px;background:var(--c);transform:rotate(45deg)}
+/* toolbar */
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:5px 11px;border-radius:8px;cursor:pointer;color:var(--fg2);font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--panel2);color:var(--fg);box-shadow:0 0 0 1px var(--line2) inset}
+.search{position:relative;flex:1 1 240px;max-width:420px}.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint)}.search .inp{padding-left:36px}
+/* tables */
+.tbl{width:100%;border-collapse:separate;border-spacing:0}
+.tbl th{text-align:left;font-size:12px;font-weight:500;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:var(--panel2)}
+.tw{overflow:auto;border-radius:var(--r)}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.av{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font:700 11.5px var(--f-d);color:#fff;flex:none;position:relative}
+.av.on::after{content:"";position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;background:var(--ok);border:2px solid var(--panel)}
+.who b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.who small{display:block;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--fg);font-size:15px;margin-bottom:4px}
+/* reports queue */
+.queue{display:grid;gap:10px}
+.rep{padding:14px 16px;display:grid;gap:10px;outline:none;transition:border-color .15s,box-shadow .15s}
+.rep.focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.rep .h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rep .h .sp{flex:1}
+.rep .ctx{background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;display:grid;gap:6px}
+.rep .ctx p{margin:0;overflow-wrap:anywhere}
+.rep .ctx img,.rep .ctx video{max-width:280px;max-height:280px;border-radius:10px;display:block}
+.rep .acts{display:flex;gap:8px;flex-wrap:wrap}
+.linkbtn{background:none;border:0;padding:0;color:var(--fg);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
+.linkbtn:hover{text-decoration-color:var(--accent)}
+/* drawer */
+#drawer{position:fixed;inset:0;z-index:50;display:none}
+#drawer.open{display:block}
+#drawer .sh{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fade .15s}
+#drawer .pn{position:absolute;right:0;top:0;bottom:0;width:min(560px,100%);background:var(--bg);border-left:1px solid var(--line);overflow:auto;animation:slide .18s ease-out;display:flex;flex-direction:column}
+@keyframes slide{from{transform:translateX(30px);opacity:0}}@keyframes fade{from{opacity:0}}
+.dh{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:16px 20px;display:flex;gap:12px;align-items:center;z-index:1}
+.dh .av{width:46px;height:46px;border-radius:14px;font-size:15px}
+.dh h3{margin:0;font:700 18px var(--f-d)}
+.db{padding:16px 20px 40px;display:grid;gap:14px}
+.sec{padding:14px 16px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:13.5px;margin-top:8px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
-button{font:inherit;border:1px solid var(--line);background:#1b2029;color:var(--fg);border-radius:9px;padding:7px 12px;cursor:pointer}
-button:hover{border-color:#3a4458}
-button.pri{background:var(--accent);border-color:transparent;color:#1a1300;font-weight:600}
-button.dng{color:var(--danger)}
-input{font:inherit;background:#0f131b;border:1px solid var(--line);color:var(--fg);border-radius:9px;padding:9px 12px;width:100%}
-.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1 1 200px;width:auto}
-.muted{color:var(--muted)}.err{color:var(--danger);min-height:1.3em;margin:8px 0 0}
-table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:7px 6px;border-top:1px solid var(--line)}th{color:var(--muted);font-weight:500;border-top:0}
-#login{max-width:360px;margin:12vh auto 0}
+.li{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.li:first-of-type{border-top:0}
+.li .tx{flex:1;min-width:0}.li .tx p{margin:2px 0 0;color:var(--fg2);overflow-wrap:anywhere}
+/* dialog + toast */
+#dlg{position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:16px;background:rgba(0,0,0,.5)}
+#dlg.open{display:grid}
+#dlg .box{width:min(440px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:12px;animation:fade .12s}
+#dlg h3{margin:0;font:600 17px var(--f)}#dlg p{margin:0;color:var(--fg2)}
+#dlg .ft{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:550;z-index:70;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+#toast.on{opacity:1;transform:translate(-50%,-4px)}
+.help{font-size:12.5px;color:var(--faint);display:flex;gap:12px;flex-wrap:wrap;margin:-4px 0 12px}
+.loading{padding:40px;text-align:center;color:var(--muted)}
+@media (max-width:600px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}.hide-s{display:none}.kpis{grid-template-columns:1fr 1fr;gap:8px}.kpi{padding:12px}.kpi .v{font-size:21px}.kpi .d{font-size:12px}.grid2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div id="login" class="panel" hidden>
-    <h1 style="margin-bottom:12px">Stuckup · админка</h1>
-    <form id="lf"><input type="password" id="pw" placeholder="Пароль администратора" autocomplete="current-password" required><p class="err" id="lerr"></p><button class="pri" type="submit">Войти</button></form>
-  </div>
-  <div id="app" hidden>
-    <header><h1>STUCKUP · админка</h1><button id="reload">Обновить</button><button id="out">Выйти</button></header>
-    <div class="kpis" id="kpis"></div>
-    <h2>Жалобы</h2><div class="panel" id="reports"></div>
-    <h2>Оспоренные результаты праков</h2><div class="panel" id="disputes"></div>
-    <h2>Заблокировать или разблокировать игрока</h2>
-    <div class="panel"><div class="row"><input id="bnick" placeholder="Ник игрока"><input id="breason" placeholder="Причина (для себя)"><button class="dng" id="bban">Заблокировать</button><button id="bunban">Разблокировать</button></div><p class="err" id="berr"></p></div>
-    <h2>Заблокированные</h2><div class="panel" id="banned"></div>
-    <h2>Новые игроки</h2><div class="panel" id="recent"></div>
+<div id="login" hidden>
+  <form class="lcard" id="lf">
+    <div class="brand"><span class="bars"><i></i><i></i><i></i><i></i><i></i></span><span>STUCK<b>UP</b></span></div>
+    <h1>Вход в админку</h1>
+    <input class="inp" type="password" id="pw" placeholder="Пароль администратора" autocomplete="current-password" required>
+    <p class="err" id="lerr"></p>
+    <button class="btn pri" style="width:100%" type="submit">Войти</button>
+  </form>
+</div>
+<div id="app" hidden>
+  <aside>
+    <div class="brand"><span class="bars"><i></i><i></i><i></i><i></i><i></i></span><span>STUCK<b>UP</b></span></div>
+    <nav class="side" id="nav"></nav>
+    <div class="foot"><span id="build"></span><button class="btn sm ghost" id="out" style="justify-content:flex-start">Выйти</button></div>
+  </aside>
+  <div style="min-width:0">
+    <div class="top-m" id="navm"></div>
+    <main id="main"><div class="loading">Загрузка…</div></main>
   </div>
 </div>
+<div id="drawer"><div class="sh" data-close></div><div class="pn" id="dpn"></div></div>
+<div id="dlg"><div class="box" id="dbox"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script>
 (function () {
 "use strict";
-const $ = s => document.querySelector(s);
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const when = t => new Date(t).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const REASON = { toxic: "Оскорбления", spam: "Спам или реклама", fake: "Ненастоящий ранг", scam: "Мошенничество" };
-const ERR = { bad_password: "Неверный пароль.", too_many: "Слишком много попыток. Подождите 15 минут.", admin_off: "Админка выключена: в секретах репозитория нет ADMIN_PASSWORD (от 8 символов).", gone: "Уже не существует.", network: "Нет связи с сервером." };
+const I = (d) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const IC = {
+  home: I('<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'), flag: I('<path d="M5 21V4h11l-1.5 4L16 12H5"/>'), users: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'),
+  list: I('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>'), shield: I('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'), chat: I('<path d="M4 5h16v11H8l-4 4z"/>'),
+  scale: I('<path d="M12 3v18M5 21h14M5 7l-3 7h6zM19 7l-3 7h6zM5 7h14"/>'), cpu: I('<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/>'), clock: I('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  search: I('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'), x: I('<path d="M6 6l12 12M18 6L6 18"/>'), ext: I('<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>')
+};
+const GAMES = { dota: ["Dota 2", "#f0614a"], cs2: ["CS2", "#5aa9ff"], valorant: ["Valorant", "#ff4d6d"], lol: ["LoL", "#3cc8c0"], deadlock: ["Deadlock", "#93a4b8"], rivals: ["Rivals", "#ff8a3d"], apex: ["Apex", "#9ad34e"], pubg: ["PUBG", "#e3bb5f"], fortnite: ["Fortnite", "#ab8dff"], standoff: ["Standoff 2", "#4fe0b0"], pubgm: ["PUBG M", "#ff7ac8"] };
+const REASON = { toxic: "Оскорбления", spam: "Спам/реклама", fake: "Фейковый ранг", scam: "Мошенничество" };
+const VIA = { email: "Почта", vk: "VK", telegram: "Telegram", "?": "—" };
+const TROLE = { captain: "Капитан", manager: "Менеджер", coach: "Тренер", player: "Игрок", sub: "Запасной" };
+const ERR = { bad_password: "Неверный пароль.", too_many: "Слишком много попыток. Подождите 15 минут.", admin_off: "Админка выключена: в секретах репозитория нет ADMIN_PASSWORD (от 8 символов).", gone: "Уже не существует.", network: "Нет связи с сервером.", nick_taken: "Этот ник занят.", bad_nick: "Ник: 3–20 символов — буквы, цифры, точка, дефис и _.", confirm: "Ник для подтверждения не совпал.", empty: "Слишком коротко." };
+const g = k => { const x = GAMES[k] || [k, "#8a93a5"]; return `<span class="g" style="--c:${x[1]}"><i></i>${esc(x[0])}</span>`; };
+const AVC = ["#7b5cff", "#d4683a", "#2f9e8f", "#b8486c", "#4677d6", "#8c7a2b", "#6a4fb3", "#3d8f4f"];
+const av = (nick, on) => { let h = 0; for (const c of String(nick)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `<span class="av${on ? " on" : ""}" style="background:${AVC[h % AVC.length]}">${esc(String(nick).slice(0, 2).toUpperCase())}</span>`; };
+const fmtN = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+const ago = t => { if (!t) return "—"; const s = (Date.now() - t) / 1000; if (s < 60) return "только что"; if (s < 3600) return Math.round(s / 60) + " мин назад"; if (s < 86400) return Math.round(s / 3600) + " ч назад"; if (s < 86400 * 30) return Math.round(s / 86400) + " дн назад"; return date(t); };
+const date = t => new Date(t).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: new Date(t).getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+const dt = t => new Date(t).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const plural = (n, a, b, c) => n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c;
+
 async function api(method, path, body) {
   try {
     const r = await fetch("/api/admin" + path, { method, credentials: "same-origin", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
     const j = await r.json().catch(() => ({}));
+    if (r.status === 401 && path !== "/login") { showLogin(); }
     return Object.assign(j, { ok: r.ok, status: r.status });
   } catch (e) { return { ok: false, error: "network" }; }
 }
 const msg = r => ERR[r.error] || "Ошибка: " + (r.error || r.status);
-async function load() {
-  const r = await api("GET", "/overview");
-  if (!r.ok) { $("#app").hidden = true; $("#login").hidden = false; if (r.status !== 401) $("#lerr").textContent = msg(r); return; }
-  $("#login").hidden = true; $("#app").hidden = false;
-  const s = r.stats;
-  $("#kpis").innerHTML = [["Игроков", s.users], ["Новых за сутки", s.new24], ["Объявлений в ленте", s.posts], ["Команд", s.teams], ["Сыграно праков", s.played], ["Заблокировано", s.banned]].map(k => `<div class="kpi"><b>${k[1]}</b><span>${k[0]}</span></div>`).join("");
-  $("#reports").innerHTML = r.reports.length ? r.reports.map(x => `<div class="item"><div class="h"><b>${esc(x.targetNick)}</b><span class="tag">${esc(REASON[x.reason] || x.reason)}</span><span>от ${esc(x.fromNick)} · ${when(x.t)}</span></div>
-${x.msg ? `<p class="note">Сообщение в чате: ${esc(x.msg.text || "")}</p>${x.mediaUrl ? (x.msg.media.kind === "photo" ? `<img src="${esc(x.mediaUrl)}" alt="" style="max-width:260px;border-radius:10px">` : x.msg.media.kind === "voice" ? `<audio controls preload="none" src="${esc(x.mediaUrl)}"></audio>` : `<video controls preload="metadata" playsinline src="${esc(x.mediaUrl)}" style="max-width:260px;border-radius:10px"></video>`) : ""}` : `<p class="note">${esc(x.post.note || "(без текста)")}</p><span class="muted">${esc(x.post.game)} · контакты: ${esc([x.post.c && x.post.c.dc, x.post.c && x.post.c.tg ? "@" + x.post.c.tg : ""].filter(Boolean).join(", ") || "нет")}</span>`}
-<div class="acts"><button data-rep="${esc(x.id)}" data-a="dismiss">Нарушения нет</button><button data-rep="${esc(x.id)}" data-a="warn">Предупредить</button><button data-rep="${esc(x.id)}" data-a="remove">${x.msg ? "Удалить сообщение" : "Снять объявление"}</button><button class="dng" data-rep="${esc(x.id)}" data-a="ban">Заблокировать игрока</button></div></div>`).join("") : '<span class="muted">Новых жалоб нет.</span>';
-  $("#disputes").innerHTML = r.disputes.length ? r.disputes.map(x => `<div class="item"><div class="h"><b>${esc(x.host)} — ${esc(x.guest)}</b><span>${esc(x.game)} · ${when(x.at)}</span></div>
-<span class="muted">Результат внесли ${x.rep.by === "host" ? esc(x.host) : esc(x.guest)}: ${x.rep.beh === "ns" ? "соперник не пришёл" : x.rep.wins + ":" + x.rep.losses}. Вторая команда не согласна.</span>
-<div class="acts"><button data-sc="${esc(x.id)}" data-a="restore">Вернуть на внесение результата</button><button class="dng" data-sc="${esc(x.id)}" data-a="void">Аннулировать прак</button></div></div>`).join("") : '<span class="muted">Споров нет.</span>';
-  $("#banned").innerHTML = r.banned.length ? `<table><tr><th>Ник</th><th>Причина</th><th>Когда</th><th></th></tr>${r.banned.map(x => `<tr><td>${esc(x.nick)}</td><td>${esc(REASON[x.reason] || x.reason || "—")}</td><td>${x.t ? when(x.t) : ""}</td><td><button data-unban="${esc(x.id)}">Разблокировать</button></td></tr>`).join("")}</table>` : '<span class="muted">Никого.</span>';
-  $("#recent").innerHTML = `<table><tr><th>Ник</th><th>Вход</th><th>Зарегистрирован</th></tr>${r.recent.map(x => `<tr><td>${esc(x.nick)}</td><td>${esc(x.via)}</td><td>${when(x.created)}</td></tr>`).join("")}</table>`;
+let tt; function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(tt); tt = setTimeout(() => el.classList.remove("on"), 2600); }
+
+/* ---------- dialog ---------- */
+function dialog(o) {
+  return new Promise(res => {
+    const box = $("#dbox");
+    box.innerHTML = `<h3>${esc(o.title)}</h3>${o.text ? `<p>${esc(o.text)}</p>` : ""}${o.body || ""}<p class="err" id="derr" style="margin:0;min-height:0"></p><div class="ft"><button class="btn ghost" data-d="0">Отмена</button><button class="btn ${o.danger ? "bad" : "pri"}" data-d="1">${esc(o.ok || "Готово")}</button></div>`;
+    $("#dlg").classList.add("open");
+    const f = box.querySelector("input,textarea,select"); if (f) setTimeout(() => f.focus(), 30);
+    const done = v => { $("#dlg").classList.remove("open"); box.onclick = null; document.removeEventListener("keydown", kd, true); res(v); };
+    const collect = () => { const o2 = {}; box.querySelectorAll("[name]").forEach(x => { o2[x.name] = x.type === "radio" ? (x.checked ? x.value : o2[x.name]) : x.value; }); return o2; };
+    const kd = e => { if (e.key === "Escape") { e.stopPropagation(); done(null); } if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { e.preventDefault(); e.stopPropagation(); submit(); } };
+    const submit = () => { const v = collect(); if (o.check) { const er = o.check(v); if (er) { $("#derr").textContent = er; return; } } done(v); };
+    box.onclick = e => { const b = e.target.closest("[data-d]"); if (!b) return; if (b.dataset.d === "1") submit(); else done(null); };
+    document.addEventListener("keydown", kd, true);
+  });
 }
-$("#lf").addEventListener("submit", async e => { e.preventDefault(); $("#lerr").textContent = ""; const r = await api("POST", "/login", { password: $("#pw").value }); if (!r.ok) { $("#lerr").textContent = msg(r); return; } $("#pw").value = ""; load(); });
-$("#out").addEventListener("click", async () => { await api("POST", "/logout", {}); load(); });
-$("#reload").addEventListener("click", load);
-document.addEventListener("click", async e => {
-  const b = e.target.closest("button"); if (!b) return; let r = null;
-  if (b.dataset.rep) { if (b.dataset.a === "ban" && !confirm("Заблокировать игрока и снять его объявления?")) return; r = await api("POST", "/act", { report: b.dataset.rep, action: b.dataset.a }); }
-  else if (b.dataset.sc) r = await api("POST", "/act", { scrim: b.dataset.sc, action: b.dataset.a });
-  else if (b.dataset.unban) r = await api("POST", "/act", { user: b.dataset.unban, action: "unban" });
-  else if (b.id === "bban" || b.id === "bunban") { const n = $("#bnick").value.trim(); if (!n) return; r = await api("POST", "/act", { user: n, action: b.id === "bban" ? "ban" : "unban", reason: $("#breason").value }); $("#berr").textContent = r.ok ? "Готово: " + r.nick : (r.status === 404 ? "Игрок с таким ником не найден." : msg(r)); if (r.ok) { $("#bnick").value = ""; $("#breason").value = ""; } }
-  if (r) { if (!r.ok && r.status === 401) { load(); return; } load(); }
+const confirmD = (title, text, ok, danger) => dialog({ title, text, ok, danger });
+
+/* ---------- navigation ---------- */
+const PAGES = [["home", "Обзор", IC.home], ["reports", "Жалобы", IC.flag], ["users", "Игроки", IC.users], ["posts", "Объявления", IC.list], ["teams", "Команды", IC.shield], ["comments", "Комментарии", IC.chat], ["disputes", "Споры", IC.scale], ["system", "Система", IC.cpu], ["log", "Журнал", IC.clock]];
+let page = "home", badges = { reports: 0, disputes: 0 };
+function renderNav() {
+  const item = (k, l, ic) => `<button data-p="${k}"${page === k ? ' aria-current="page"' : ""}>${ic}<span>${l}</span>${k in badges ? `<span class="cnt${badges[k] ? "" : " z"}">${badges[k]}</span>` : ""}</button>`;
+  $("#nav").innerHTML = PAGES.map(p => item(...p)).join("");
+  $("#navm").innerHTML = PAGES.map(p => item(...p)).join("") + '<button data-logout>Выйти</button>';
+}
+function go(p, push) { page = p; renderNav(); if (push !== false) history.replaceState(null, "", "#" + p); render(); window.scrollTo(0, 0); }
+document.addEventListener("click", e => { const b = e.target.closest("[data-p]"); if (b) go(b.dataset.p); });
+
+/* ---------- pages ---------- */
+const V = {};
+async function render() { const fn = V[page] || V.home; $("#main").innerHTML = '<div class="loading">Загрузка…</div>'; await fn(); }
+
+function chart(title, key, series, color, hint) {
+  const vals = series.map(x => x[key]), max = Math.max(1, ...vals), total = vals.reduce((a, b) => a + b, 0);
+  return `<div class="card chart"><h3>${esc(title)}</h3><div class="meta"><span>${esc(hint)}</span><span><b>${fmtN(vals[vals.length - 1])}</b> сегодня · ${fmtN(total)} за 14 дн</span></div>
+<div class="bars2">${series.map(x => `<div class="b" style="--c:${color}"><span class="tip">${new Date(x.day).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}: ${x[key]}</span><i style="height:${Math.round(x[key] / max * 100)}%"></i></div>`).join("")}</div>
+<div class="axis"><span>${new Date(series[0].day).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</span><span>сегодня</span></div></div>`;
+}
+V.home = async () => {
+  const r = await api("GET", "/overview"); if (!r.ok) return;
+  const k = r.kpi, s = r.system; badges.reports = k.reports; badges.disputes = k.disputes; renderNav();
+  const card = (l, v, d, cls, link) => `<div class="card kpi${cls ? " " + cls : ""}${link ? " link" : ""}"${link ? ` data-p="${link}"` : ""}><span class="l">${l}</span><span class="v">${v}</span><span class="d">${d}</span></div>`;
+  const bk = s.backup && s.backup.t ? (Date.now() - s.backup.t < 36 * 3600000 ? ["ok", "Копия " + ago(s.backup.t)] : ["bad", "Копия устарела"]) : ["warn", "Копий ещё нет"];
+  const gm = Object.entries(r.byGame).sort((a, b) => b[1] - a[1]), gmax = Math.max(1, ...gm.map(x => x[1]));
+  $("#main").innerHTML = `<div class="ph"><h2>Обзор</h2><span class="sub">${new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span><span class="sp"></span><button class="btn sm" id="rf">Обновить</button></div>
+<div class="kpis">
+${card("Игроков", fmtN(k.users), `<b>+${k.new1}</b> за сутки · <b>+${k.new7}</b> за неделю`, "", "users")}
+${card("Сейчас на сайте", fmtN(k.online), `${fmtN(k.active24)} за сутки`)}
+${card("Объявлений в ленте", fmtN(k.posts), `${k.postsToday} размещено сегодня`, "", "posts")}
+${card("Сообщений сегодня", fmtN(k.msgsToday), "в личных чатах")}
+${card("Команд", fmtN(k.teams), `${k.scrimsOpen} праков в работе · ${k.scrimsPlayed} сыграно`, "", "teams")}
+${card("Жалоб открыто", k.reports, k.reports ? "нужно разобрать" : "всё чисто", k.reports ? "alert" : "", "reports")}
+${k.disputes ? card("Споров по пракам", k.disputes, "ждут решения", "alert", "disputes") : ""}
+${card("Привязки", fmtN(k.withSteam), `Steam · ${k.withEmail} с почтой · ${k.withVk} через VK`)}
+</div>
+<div class="grid2">${chart("Регистрации", "signups", r.series, "#ffb000", "новые игроки по дням")}${chart("Активные игроки", "active", r.series, "#3ecf8e", "заходили хотя бы раз за день")}</div>
+<div class="grid2">${chart("Объявления", "posts", r.series, "#5aa9ff", "размещено за день")}${chart("Сообщения", "msgs", r.series, "#ab8dff", "отправлено за день")}</div>
+<div class="grid2"><div class="card chart"><h3>Объявления по играм</h3><div class="meta"><span>активные сейчас</span></div>${gm.length ? gm.map(([key, n]) => `<div class="hbar" style="--c:${(GAMES[key] || [0, "#888"])[1]}"><span>${esc((GAMES[key] || [key])[0])}</span><span class="t"><i style="width:${Math.round(n / gmax * 100)}%"></i></span><span class="n mono">${n}</span></div>`).join("") : '<p class="muted">Пока пусто.</p>'}</div>
+<div class="card chart"><h3>Система</h3><div class="meta"><span>сборка ${esc(s.build)}</span></div><div class="sysrow">
+<span class="pill ${s.mail === "smtp" ? "ok" : "bad"}"><i class="dot"></i>Почта ${s.mail === "smtp" ? "работает" : "не настроена"}</span>
+<span class="pill ${s.media ? "ok" : "bad"}"><i class="dot"></i>Файлы ${s.media ? "работают" : "выключены"}</span>
+<span class="pill ${bk[0]}"><i class="dot"></i>${bk[1]}</span>
+<span class="pill ${s.queue > 20 ? "warn" : "ok"}"><i class="dot"></i>Очередь писем: ${s.queue}</span></div>
+<p class="muted" style="margin:14px 0 0;font-size:13px">Подробности и резервные копии — в разделе <button class="linkbtn" data-p="system">Система</button>.</p></div></div>`;
+  $("#rf").onclick = () => render();
+};
+
+/* reports */
+let repTab = "open", repFocus = 0, repList = [];
+V.reports = async () => {
+  const r = await api("GET", "/reports" + (repTab === "done" ? "?done=1" : "")); if (!r.ok) return;
+  repList = r.reports; if (repTab === "open") { badges.reports = repList.length; renderNav(); }
+  repFocus = Math.min(repFocus, Math.max(0, repList.length - 1));
+  const ctx = x => x.msg
+    ? `<div class="ctx"><span class="muted" style="font-size:12.5px">Сообщение в личном чате</span>${x.msg.text ? `<p>${esc(x.msg.text)}</p>` : ""}${x.mediaUrl ? (x.msg.media.kind === "photo" ? `<img src="${esc(x.mediaUrl)}" alt="">` : x.msg.media.kind === "voice" ? `<audio controls preload="none" src="${esc(x.mediaUrl)}"></audio>` : `<video controls preload="metadata" playsinline src="${esc(x.mediaUrl)}"></video>`) : x.msg.media ? '<span class="faint">файл уже удалён</span>' : ""}</div>`
+    : x.post ? `<div class="ctx"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${g(x.post.game)}<span class="mono muted">${esc(x.post.rt || "")}</span></div><p>${esc(x.post.note || "(без текста)")}</p><span class="muted" style="font-size:12.5px">Контакты: ${esc([x.post.c && x.post.c.dc ? "Discord " + x.post.c.dc : "", x.post.c && x.post.c.tg ? "Telegram @" + x.post.c.tg : ""].filter(Boolean).join(" · ") || "нет")}</span></div>` : "";
+  const item = (x, i) => `<article class="card rep${i === repFocus && repTab === "open" ? " focus" : ""}" data-i="${i}" tabindex="-1">
+<div class="h">${av(x.targetNick)}<button class="linkbtn" data-user="${esc(x.target)}">${esc(x.targetNick)}</button><span class="chip bad">${esc(REASON[x.reason] || x.reason)}</span>${x.against > 1 ? `<span class="chip acc">${x.against} ${plural(x.against, "жалоба", "жалобы", "жалоб")} на игрока</span>` : ""}<span class="sp"></span><span class="muted" style="font-size:12.5px">от ${esc(x.fromNick)} · ${ago(x.t)}</span></div>
+${ctx(x)}
+${repTab === "open" ? `<div class="acts"><button class="btn sm" data-ra="dismiss">Нарушения нет<kbd>1</kbd></button><button class="btn sm" data-ra="warn">Предупредить<kbd>2</kbd></button><button class="btn sm" data-ra="remove">${x.msg ? "Удалить сообщение" : "Снять объявление"}<kbd>3</kbd></button><button class="btn sm bad" data-ra="ban">Заблокировать<kbd>4</kbd></button></div>`
+    : `<div class="muted" style="font-size:13px">Решение: <b>${esc({ dismiss: "нарушения нет", warn: "предупреждение", remove: "удалено", ban: "блокировка" }[x.done.a] || x.done.a)}</b> · ${ago(x.done.t)}${x.done.dup ? " · вместе с другой жалобой" : ""}</div>`}
+</article>`;
+  $("#main").innerHTML = `<div class="ph"><h2>Жалобы</h2><span class="sub">${repTab === "open" ? (repList.length ? repList.length + " " + plural(repList.length, "открытая", "открытые", "открытых") : "") : "последние решения"}</span><span class="sp"></span><div class="seg"><button data-rt="open" aria-pressed="${repTab === "open"}">Открытые</button><button data-rt="done" aria-pressed="${repTab === "done"}">Решённые</button></div></div>
+${repTab === "open" && repList.length ? '<div class="help"><span><kbd>J</kbd> <kbd>K</kbd> — следующая / предыдущая</span><span><kbd>1</kbd>–<kbd>4</kbd> — решение</span><span>Решение закрывает и другие жалобы на то же объявление или сообщение</span></div>' : ""}
+<div class="queue">${repList.length ? repList.map(item).join("") : `<div class="card empty"><b>${repTab === "open" ? "Жалоб нет" : "Пока пусто"}</b>${repTab === "open" ? "Когда игроки пожалуются на объявление или сообщение, они появятся здесь." : ""}</div>`}</div>`;
+  $$("[data-rt]").forEach(b => b.onclick = () => { repTab = b.dataset.rt; repFocus = 0; render(); });
+};
+async function decide(i, a) {
+  const x = repList[i]; if (!x) return;
+  let body = { report: x.id, action: a };
+  if (a === "ban") { const v = await banDialog(x.targetNick); if (!v) return; body.days = v.days; }
+  const r = await api("POST", "/act", body);
+  if (!r.ok) { toast(msg(r)); return; }
+  toast({ dismiss: "Закрыто без нарушения", warn: "Игрок предупреждён", remove: "Удалено", ban: "Игрок заблокирован" }[a]);
+  render();
+}
+function banDialog(nick) {
+  return dialog({ title: "Заблокировать " + nick + "?", text: "Объявления игрока снимутся, он выйдет со всех устройств.", ok: "Заблокировать", danger: true,
+    body: `<div class="seg" style="justify-self:start">${[["1", "1 день"], ["7", "7 дней"], ["30", "30 дней"], ["0", "Навсегда"]].map(([d, l], i) => `<label style="display:flex"><input type="radio" name="days" value="${d}"${i === 1 ? " checked" : ""} style="display:none"><button type="button" onclick="this.previousElementSibling.checked=true;[...this.closest('.seg').querySelectorAll('button')].forEach(b=>b.setAttribute('aria-pressed',b===this))" aria-pressed="${i === 1}">${l}</button></label>`).join("")}</div><input class="inp" name="reason" placeholder="Причина (для журнала)" maxlength="200">` });
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ra]"); if (!b) return;
+  const i = +b.closest(".rep").dataset.i; repFocus = i; decide(i, b.dataset.ra);
 });
-load();
+document.addEventListener("keydown", e => {
+  if (page !== "reports" || repTab !== "open" || $("#dlg.open") || $("#drawer.open") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if (e.key === "j" || e.key === "о") { repFocus = Math.min(repList.length - 1, repFocus + 1); focusRep(); }
+  else if (e.key === "k" || e.key === "л") { repFocus = Math.max(0, repFocus - 1); focusRep(); }
+  else if ("1234".includes(e.key) && e.key) decide(repFocus, ["dismiss", "warn", "remove", "ban"][+e.key - 1]);
+});
+function focusRep() { $$(".rep").forEach(el => el.classList.toggle("focus", +el.dataset.i === repFocus)); const el = $(`.rep[data-i="${repFocus}"]`); if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+
+/* players */
+let uq = "", uf = "all", ut;
+V.users = async () => {
+  if (!$("#uq")) {
+    $("#main").innerHTML = `<div class="ph"><h2>Игроки</h2><span class="sub" id="ucount"></span></div>
+<div class="bar"><label class="search">${IC.search}<input class="inp" id="uq" placeholder="Ник, почта, Discord, Telegram или ID" value="${esc(uq)}" autocomplete="off"></label>
+<div class="seg">${[["all", "Все"], ["new", "Новые"], ["online", "Онлайн"], ["reported", "С жалобами"], ["banned", "Заблокированные"]].map(([k, l]) => `<button data-uf="${k}" aria-pressed="${uf === k}">${l}</button>`).join("")}</div></div>
+<div class="card tw"><table class="tbl"><thead><tr><th>Игрок</th><th class="hide-s">Вход</th><th class="hide-s">Игры</th><th>Был</th><th class="hide-s">Регистрация</th><th></th></tr></thead><tbody id="ub"></tbody></table></div>`;
+    $("#uq").oninput = e => { uq = e.target.value; clearTimeout(ut); ut = setTimeout(loadUsers, 250); };
+    $$("[data-uf]").forEach(b => b.onclick = () => { uf = b.dataset.uf; $$("[data-uf]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); loadUsers(); });
+  }
+  await loadUsers();
+};
+async function loadUsers() {
+  const r = await api("GET", "/users?q=" + encodeURIComponent(uq) + "&f=" + uf); if (!r.ok || !$("#ub")) return;
+  $("#ucount").textContent = fmtN(r.total) + " " + plural(r.total, "игрок", "игрока", "игроков") + (r.total > r.users.length ? " · показаны первые " + r.users.length : "");
+  const on = x => x.seen && Date.now() - x.seen < 300000;
+  $("#ub").innerHTML = r.users.length ? r.users.map(x => `<tr class="click" data-user="${esc(x.id)}"><td><div class="who">${av(x.nick, on(x))}<div style="min-width:0"><b>${esc(x.nick)}</b><small>${esc(x.email || "—")}</small></div></div></td>
+<td class="hide-s">${esc(VIA[x.via])}</td><td class="hide-s"><div style="display:flex;gap:8px;flex-wrap:wrap">${x.games.slice(0, 3).map(g).join("")}</div></td><td class="muted">${on(x) ? '<span class="chip ok">онлайн</span>' : ago(x.seen)}</td><td class="hide-s muted">${date(x.created)}</td>
+<td><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${x.banned ? '<span class="chip bad">бан</span>' : ""}${x.reports ? `<span class="chip acc">${x.reports} жал.</span>` : ""}${x.faceit ? '<span class="chip info">FACEIT</span>' : x.steam ? '<span class="chip info">Steam</span>' : ""}</div></td></tr>`).join("")
+    : `<tr><td colspan="6"><div class="empty"><b>Никого не нашли</b>Попробуйте другой запрос или фильтр.</div></td></tr>`;
+}
+
+/* user drawer */
+document.addEventListener("click", e => { const u = e.target.closest("[data-user]"); if (u && !e.target.closest("button[data-ua]")) openUser(u.dataset.user); });
+document.addEventListener("click", e => { if (e.target.closest("[data-close]")) closeUser(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#drawer.open") && !$("#dlg.open")) closeUser(); });
+function closeUser() { $("#drawer").classList.remove("open"); }
+async function openUser(id) {
+  $("#drawer").classList.add("open"); $("#dpn").innerHTML = '<div class="loading">Загрузка…</div>';
+  const r = await api("GET", "/users/" + encodeURIComponent(id)); if (!r.ok) { $("#dpn").innerHTML = `<div class="empty"><b>${esc(msg(r))}</b></div>`; return; }
+  const u = r.user, p = u.profile || {}, ban = u.banned;
+  const ver = Object.keys(u.ver || {}).map(k => ({ medal: "медаль Dota 2", faceit: "ELO FACEIT" }[k] || k)).join(", ");
+  $("#dpn").innerHTML = `<div class="dh">${av(u.nick, u.online)}<div style="flex:1;min-width:0"><h3>${esc(u.nick)}</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${ban ? `<span class="chip bad">бан ${ban.until ? "до " + dt(ban.until) : "навсегда"}</span>` : ""}${u.online ? '<span class="chip ok">онлайн</span>' : ""}${u.warns ? `<span class="chip acc">${u.warns} ${plural(u.warns, "предупреждение", "предупреждения", "предупреждений")}</span>` : ""}${u.against.length ? `<span class="chip acc">${u.against.length} ${plural(u.against.length, "жалоба", "жалобы", "жалоб")}</span>` : ""}</div></div><button class="btn sm ghost" data-close aria-label="Закрыть">${IC.x}</button></div>
+<div class="db">
+<div class="card sec"><div class="acts">${ban ? '<button class="btn sm pri" data-ua="unban">Разблокировать</button>' : '<button class="btn sm bad" data-ua="ban">Заблокировать</button>'}<button class="btn sm" data-ua="warn">Предупредить</button><button class="btn sm" data-ua="rename">Сменить ник</button><button class="btn sm" data-ua="logout">Выйти со всех устройств</button>${ver ? '<button class="btn sm" data-ua="unverify">Снять подтверждение рангов</button>' : ""}<button class="btn sm bad" data-ua="delete">Удалить аккаунт</button></div>
+${ban ? `<p class="muted" style="margin:10px 0 0;font-size:13px">Заблокирован ${dt(ban.t)}${ban.reason ? " · " + esc(REASON[ban.reason] || ban.reason) : ""}</p>` : ""}</div>
+<div class="card sec"><h3>Аккаунт</h3><dl class="kv">
+<dt>Почта</dt><dd>${esc(u.email || "—")}</dd><dt>Вход</dt><dd>${esc(VIA[u.via])}${u.vk ? " · VK id " + esc(u.vk) : ""}${u.tg ? " · TG " + esc(u.tg) : ""}</dd>
+<dt>Регистрация</dt><dd>${dt(u.created)}</dd><dt>Был на сайте</dt><dd>${u.online ? "сейчас" : ago(u.seen)}</dd>
+<dt>Контакты</dt><dd>${esc([p.dc ? "Discord " + p.dc : "", p.tg ? "Telegram @" + p.tg : ""].filter(Boolean).join(" · ") || "—")}</dd>
+<dt>Steam</dt><dd>${u.steam ? `<a href="https://steamcommunity.com/profiles/${esc(u.steam)}" target="_blank" rel="noopener">${esc(u.steam)}</a>` : "—"}</dd><dt>FACEIT</dt><dd>${u.faceit ? `<a href="https://www.faceit.com/ru/players/${esc(u.faceit)}" target="_blank" rel="noopener">${esc(u.faceit)}</a>` : "—"}</dd>
+<dt>Подтверждено</dt><dd>${esc(ver || "—")}</dd><dt>Игры</dt><dd><div style="display:flex;gap:8px;flex-wrap:wrap">${(p.games || []).map(g).join("") || "—"}</div></dd>
+<dt>Регион, языки</dt><dd>${esc(p.region || "—")} · ${esc((p.langs || []).join(", ").toUpperCase())}</dd><dt>Чатов</dt><dd>${u.chats} · в избранном у себя ${u.favs}, в чёрном списке ${u.blocked}</dd><dt>Жалоб подал</dt><dd>${u.by}</dd>
+</dl></div>
+<div class="card sec"><h3>Объявления</h3>${u.posts.length ? u.posts.map(x => `<div class="li"><div class="tx"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${g(x.game)}<span class="mono muted">${esc(x.rt)}</span><span class="faint">до ${dt(x.exp)}</span></div>${x.note ? `<p>${esc(x.note)}</p>` : ""}</div><button class="btn sm" data-ua="post" data-id="${esc(x.id)}">Снять</button></div>`).join("") : '<p class="muted" style="margin:6px 0 0">Активных объявлений нет.</p>'}</div>
+${u.teams.length ? `<div class="card sec"><h3>Команды</h3>${u.teams.map(t => `<div class="li"><div class="tx">${g(t.game)} <b>${esc(t.name)}</b> <span class="mono faint">[${esc(t.tag)}]</span> · ${esc(TROLE[t.role] || t.role)}</div></div>`).join("")}</div>` : ""}
+<div class="card sec"><h3>Жалобы на игрока</h3>${u.against.length ? u.against.map(x => `<div class="li"><div class="tx"><span class="chip bad">${esc(REASON[x.reason] || x.reason)}</span> <span class="muted">от ${esc(x.fromNick)} · ${ago(x.t)}${x.done ? " · решено" : ""}</span><p>${esc(x.msg ? (x.msg.text || "[файл]") : x.post ? x.post.note || "(объявление без текста)" : "")}</p></div></div>`).join("") : '<p class="muted" style="margin:6px 0 0">Жалоб нет.</p>'}</div>
+<div class="card sec"><h3>Комментарии о нём</h3>${u.comments.length ? u.comments.map(c => `<div class="li"><div class="tx"><b>${esc(c.nick)}</b> <span class="muted">${ago(c.t)}</span><p>${esc(c.text)}</p></div><button class="btn sm" data-ua="comment" data-from="${esc(c.from)}">Удалить</button></div>`).join("") : '<p class="muted" style="margin:6px 0 0">Комментариев нет.</p>'}</div>
+${u.log.length ? `<div class="card sec"><h3>Действия админа</h3>${u.log.map(l => `<div class="li"><div class="tx"><b>${esc(ACT[l.action] || l.action)}</b> <span class="muted">${dt(l.t)}</span>${l.note ? `<p>${esc(l.note)}</p>` : ""}</div></div>`).join("")}</div>` : ""}
+</div>`;
+  $("#dpn").onclick = async e => {
+    const b = e.target.closest("[data-ua]"); if (!b) return;
+    const a = b.dataset.ua; let body = { user: u.id, action: a }, ok;
+    if (a === "ban") { const v = await banDialog(u.nick); if (!v) return; body.days = +v.days; body.reason = v.reason; ok = "Игрок заблокирован"; }
+    else if (a === "unban") { ok = "Блокировка снята"; }
+    else if (a === "warn") { if (!(await confirmD("Предупредить " + u.nick + "?", "Игрок получит уведомление о нарушении правил.", "Предупредить"))) return; ok = "Предупреждение отправлено"; }
+    else if (a === "logout") { if (!(await confirmD("Выйти со всех устройств?", "Игроку придётся войти заново.", "Выйти"))) return; ok = "Сессии сброшены"; }
+    else if (a === "unverify") { if (!(await confirmD("Снять подтверждение рангов?", "Щиток пропадёт, ранги останутся как обычные.", "Снять"))) return; ok = "Подтверждение снято"; }
+    else if (a === "rename") { const v = await dialog({ title: "Новый ник для " + u.nick, body: `<input class="inp" name="nick" value="${esc(u.nick)}" maxlength="20">`, ok: "Сохранить", check: v => /^[A-Za-zА-Яа-яЁё0-9_.-]{3,20}$/.test(v.nick.trim()) ? "" : ERR.bad_nick }); if (!v) return; body.nick = v.nick.trim(); ok = "Ник изменён"; }
+    else if (a === "delete") { const v = await dialog({ title: "Удалить аккаунт " + u.nick + "?", text: "Удалятся профиль, объявления, переписки и файлы. Это нельзя отменить. Введите ник для подтверждения.", body: `<input class="inp" name="confirm" placeholder="${esc(u.nick)}" autocomplete="off">`, ok: "Удалить навсегда", danger: true, check: v => v.confirm === u.nick ? "" : ERR.confirm }); if (!v) return; body.confirm = v.confirm; ok = "Аккаунт удалён"; }
+    else if (a === "post") { if (!(await confirmD("Снять объявление?", "Игрок получит уведомление.", "Снять"))) return; body = { post: b.dataset.id }; ok = "Объявление снято"; }
+    else if (a === "comment") { if (!(await confirmD("Удалить комментарий?", "", "Удалить", true))) return; body = { comment: { uid: u.id, from: b.dataset.from } }; ok = "Комментарий удалён"; }
+    const r2 = await api("POST", "/act", body);
+    if (!r2.ok) { toast(msg(r2)); return; }
+    toast(ok);
+    if (a === "delete") { closeUser(); render(); return; }
+    openUser(u.id); if (page === "users") loadUsers();
+  };
+}
+
+/* listings */
+let pg = "all";
+V.posts = async () => {
+  const r = await api("GET", "/posts"); if (!r.ok) return;
+  const games = [...new Set(r.posts.map(x => x.game))], list = r.posts.filter(x => pg === "all" || x.game === pg);
+  $("#main").innerHTML = `<div class="ph"><h2>Объявления</h2><span class="sub">${r.posts.length} в ленте</span></div>
+<div class="bar"><div class="seg"><button data-pg="all" aria-pressed="${pg === "all"}">Все</button>${games.map(k => `<button data-pg="${k}" aria-pressed="${pg === k}">${esc((GAMES[k] || [k])[0])} · ${r.posts.filter(x => x.game === k).length}</button>`).join("")}</div></div>
+<div class="card tw"><table class="tbl"><thead><tr><th>Игрок</th><th>Игра и ранг</th><th class="hide-s">Текст</th><th class="hide-s">Размещено</th><th></th></tr></thead><tbody>
+${list.length ? list.map(x => `<tr><td><div class="who" data-user="${esc(x.uid)}" style="cursor:pointer">${av(x.nick, x.on)}<div><b>${esc(x.nick)}</b><small>${esc([x.c && x.c.dc, x.c && x.c.tg ? "@" + x.c.tg : ""].filter(Boolean).join(" · "))}</small></div></div></td>
+<td><div style="display:grid;gap:3px">${g(x.game)}<span class="mono muted" style="font-size:12.5px">${esc(x.rt)}${x.ver ? " ✓" : ""}</span></div></td><td class="hide-s" style="max-width:340px">${esc(x.note || "—")}</td><td class="hide-s muted">${ago(x.t0)}</td>
+<td style="text-align:right"><button class="btn sm" data-rm="${esc(x.id)}">Снять</button></td></tr>`).join("") : '<tr><td colspan="5"><div class="empty"><b>Объявлений нет</b></div></td></tr>'}</tbody></table></div>`;
+  $$("[data-pg]").forEach(b => b.onclick = () => { pg = b.dataset.pg; render(); });
+  $$("[data-rm]").forEach(b => b.onclick = async () => { if (!(await confirmD("Снять объявление?", "Игрок получит уведомление о нарушении.", "Снять"))) return; const x = await api("POST", "/act", { post: b.dataset.rm }); toast(x.ok ? "Объявление снято" : msg(x)); render(); });
+};
+
+/* teams */
+V.teams = async () => {
+  const r = await api("GET", "/teams"); if (!r.ok) return;
+  $("#main").innerHTML = `<div class="ph"><h2>Команды</h2><span class="sub">${r.teams.length} · по рейтингу</span></div>
+<div class="card tw"><table class="tbl"><thead><tr><th>#</th><th>Команда</th><th>Рейтинг</th><th class="hide-s">В / П / Н</th><th class="hide-s">Состав</th><th class="hide-s">Праков</th><th></th></tr></thead><tbody>
+${r.teams.length ? r.teams.map((t, i) => `<tr><td class="mono muted">${i + 1}</td><td><div style="display:grid;gap:3px"><b>${esc(t.name)} <span class="mono faint">[${esc(t.tag)}]</span></b>${g(t.game)}</div></td><td class="mono"><b>${t.st.rating}</b></td><td class="hide-s mono muted">${t.st.w} / ${t.st.l} / ${t.st.d}${t.st.ns ? ` · неявок ${t.st.ns}` : ""}</td>
+<td class="hide-s"><div style="display:flex;flex-wrap:wrap;gap:4px">${t.members.map(m => `<button class="chip" data-user="${esc(m.uid)}" style="cursor:pointer" title="${esc(TROLE[m.trole] || "")}">${esc(m.nick)}</button>`).join("")}</div></td><td class="hide-s mono muted">${t.scrims}</td>
+<td style="text-align:right;white-space:nowrap"><button class="btn sm" data-ta="reset" data-id="${esc(t.id)}" data-n="${esc(t.name)}">Сбросить рейтинг</button> <button class="btn sm bad" data-ta="disband" data-id="${esc(t.id)}" data-n="${esc(t.name)}">Распустить</button></td></tr>`).join("") : '<tr><td colspan="7"><div class="empty"><b>Команд пока нет</b></div></td></tr>'}</tbody></table></div>`;
+  $$("[data-ta]").forEach(b => b.onclick = async () => {
+    const dis = b.dataset.ta === "disband";
+    if (!(await confirmD(dis ? "Распустить «" + b.dataset.n + "»?" : "Сбросить рейтинг «" + b.dataset.n + "»?", dis ? "Игроки останутся, команда и её праки удалятся." : "Рейтинг вернётся к 1000, статистика обнулится.", dis ? "Распустить" : "Сбросить", dis))) return;
+    const x = await api("POST", "/act", { team: b.dataset.id, action: b.dataset.ta }); toast(x.ok ? "Готово" : msg(x)); render();
+  });
+};
+
+/* comments */
+V.comments = async () => {
+  const r = await api("GET", "/comments"); if (!r.ok) return;
+  $("#main").innerHTML = `<div class="ph"><h2>Комментарии</h2><span class="sub">последние ${r.comments.length}</span></div><div class="card sec">${r.comments.length ? r.comments.map(c => `<div class="li">${av(c.nick)}<div class="tx"><button class="linkbtn" data-user="${esc(c.from)}">${esc(c.nick)}</button> <span class="muted">о</span> <button class="linkbtn" data-user="${esc(c.about)}">${esc(c.aboutNick)}</button> <span class="faint">· ${ago(c.t)}</span><p>${esc(c.text)}</p></div><button class="btn sm" data-cm='${esc(JSON.stringify({ uid: c.about, from: c.from, text: c.text }))}'>Удалить</button></div>`).join("") : '<div class="empty"><b>Комментариев пока нет</b></div>'}</div>`;
+  $$("[data-cm]").forEach(b => b.onclick = async () => { if (!(await confirmD("Удалить комментарий?", "", "Удалить", true))) return; const x = await api("POST", "/act", { comment: JSON.parse(b.dataset.cm) }); toast(x.ok ? "Удалено" : msg(x)); render(); });
+};
+
+/* disputes */
+V.disputes = async () => {
+  const r = await api("GET", "/disputes"); if (!r.ok) return;
+  badges.disputes = r.disputes.length; renderNav();
+  $("#main").innerHTML = `<div class="ph"><h2>Споры по пракам</h2><span class="sub">команды не согласны с результатом</span></div><div class="queue">${r.disputes.length ? r.disputes.map(x => `<article class="card rep"><div class="h">${g(x.game)}<b>${esc(x.host)} — ${esc(x.guest)}</b><span class="sp"></span><span class="muted">${dt(x.at)} · ${esc(String(x.format).toUpperCase())}</span></div>
+<div class="ctx"><p>Результат внесли <b>${esc(x.rep.by === "host" ? x.host : x.guest)}</b>: ${x.rep.beh === "ns" ? "соперник не пришёл" : `счёт по картам ${x.rep.wins}:${x.rep.losses}`}${(x.rep.games || []).length ? " (" + x.rep.games.map(m => (m.map ? m.map + " " : "") + m.a + ":" + m.b).join(", ") + ")" : ""}. Вторая команда оспорила.</p></div>
+<div class="acts"><button class="btn sm pri" data-sc="${esc(x.id)}" data-a="restore">Вернуть на внесение результата</button><button class="btn sm bad" data-sc="${esc(x.id)}" data-a="void">Аннулировать прак</button></div></article>`).join("") : '<div class="card empty"><b>Споров нет</b>Если команда оспорит результат прака, он появится здесь.</div>'}</div>`;
+  $$("[data-sc]").forEach(b => b.onclick = async () => { const x = await api("POST", "/act", { scrim: b.dataset.sc, action: b.dataset.a }); toast(x.ok ? "Готово" : msg(x)); render(); });
+};
+
+/* system */
+V.system = async () => {
+  const r = await api("GET", "/system"); if (!r.ok) return;
+  const b = r.backup || {}, st = (ok, t) => `<span class="pill ${ok ? "ok" : "bad"}"><i class="dot"></i>${t}</span>`;
+  $("#main").innerHTML = `<div class="ph"><h2>Система</h2><span class="sub">сборка ${esc(r.build)}</span></div>
+<div class="grid2"><div class="card sec"><h3>Сервисы</h3><div class="sysrow" style="margin-top:12px">${st(r.env.smtp, "Почта")}${st(r.media, "Файлы в чатах")}${st(r.env.vk, "Вход через VK")}${st(r.env.faceit, "FACEIT")}<span class="pill"><i class="dot"></i>Telegram недоступен из облака</span></div>
+<dl class="kv"><dt>Очередь писем</dt><dd>${r.queue}${r.queueFailed ? ` · <span style="color:var(--bad)">${r.queueFailed} с ошибкой</span>` : ""}</dd></dl></div>
+<div class="card sec"><h3>Резервные копии</h3><dl class="kv"><dt>Последняя</dt><dd>${b.t ? dt(b.t) + " · " + ago(b.t) : "ещё не было"}</dd><dt>Объём</dt><dd>${b.items ? fmtN(b.items) + " записей · " + Math.max(1, Math.round(b.bytes / 1024)) + " КБ" : "—"}</dd>${b.err ? `<dt>Ошибка</dt><dd style="color:var(--bad)">${esc(b.err)}</dd>` : ""}<dt>Хранение</dt><dd>30 дней, раз в сутки</dd></dl>
+<div class="acts" style="margin-top:12px"><button class="btn sm" id="bk">Сделать копию сейчас</button>${r.backupUrl ? `<a class="btn sm" href="${esc(r.backupUrl)}" download>Скачать последнюю</a>` : ""}</div></div></div>
+<div class="card sec" style="margin-top:12px"><h3>Объявление всем игрокам</h3><p class="muted" style="margin:4px 0 12px;font-size:13.5px">Придёт в колокольчик на сайте каждому игроку. Только для важного: техработы, новые функции.</p>
+<textarea class="inp" id="ann" maxlength="200" placeholder="Например: завтра с 3:00 до 4:00 сайт будет недоступен"></textarea><div class="acts" style="margin-top:10px"><button class="btn sm pri" id="annGo">Отправить всем</button><span class="muted" id="annN" style="font-size:12.5px;align-self:center">0 / 200</span></div></div>`;
+  $("#bk").onclick = async () => { $("#bk").disabled = true; const x = await api("POST", "/act", { action: "backup" }); toast(x.ok && !x.error ? "Копия сделана" : "Ошибка: " + (x.error || msg(x))); render(); };
+  $("#ann").oninput = e => { $("#annN").textContent = e.target.value.length + " / 200"; };
+  $("#annGo").onclick = async () => { const text = $("#ann").value.trim(); if (text.length < 5) { toast("Слишком коротко"); return; } if (!(await confirmD("Отправить всем игрокам?", text, "Отправить"))) return; const x = await api("POST", "/act", { action: "announce", text }); toast(x.ok ? "Отправлено: " + x.sent : msg(x)); if (x.ok) $("#ann").value = ""; };
+};
+
+/* audit log */
+const ACT = { login: "Вход в админку", "report:dismiss": "Жалоба: нарушения нет", "report:warn": "Жалоба: предупреждение", "report:remove": "Жалоба: удалено", "report:ban": "Жалоба: блокировка", "user:ban": "Блокировка", "user:unban": "Разблокировка", "user:warn": "Предупреждение", "user:logout": "Сброс сессий", "user:rename": "Смена ника", "user:unverify": "Снято подтверждение рангов", "user:delete": "Удаление аккаунта", "post:remove": "Снято объявление", "comment:remove": "Удалён комментарий", "team:disband": "Команда распущена", "team:reset": "Сброшен рейтинг команды", "scrim:void": "Прак аннулирован", "scrim:restore": "Прак возвращён", backup: "Резервная копия", announce: "Объявление всем" };
+V.log = async () => {
+  const r = await api("GET", "/log"); if (!r.ok) return;
+  $("#main").innerHTML = `<div class="ph"><h2>Журнал действий</h2><span class="sub">всё, что делалось в админке</span></div><div class="card tw"><table class="tbl"><thead><tr><th>Когда</th><th>Действие</th><th>Подробности</th><th class="hide-s">IP</th></tr></thead><tbody>
+${r.log.length ? r.log.map(l => `<tr${l.target && /^user|^report/.test(l.action) && l.action !== "user:delete" ? ` class="click" data-user="${esc(l.target)}"` : ""}><td class="muted" style="white-space:nowrap">${dt(l.t)}</td><td><b>${esc(ACT[l.action] || l.action)}</b></td><td class="muted">${esc(l.note || "")}</td><td class="hide-s mono faint">${esc(l.ip || "")}</td></tr>`).join("") : '<tr><td colspan="4"><div class="empty"><b>Пока пусто</b></div></td></tr>'}</tbody></table></div>`;
+};
+
+/* ---------- boot ---------- */
+function showLogin() { $("#app").hidden = true; $("#login").hidden = false; closeUser(); setTimeout(() => $("#pw").focus(), 30); }
+async function boot() {
+  const r = await api("GET", "/overview");
+  if (!r.ok) { showLogin(); if (r.status !== 401) $("#lerr").textContent = msg(r); return; }
+  $("#login").hidden = true; $("#app").hidden = false;
+  badges.reports = r.kpi.reports; badges.disputes = r.kpi.disputes; $("#build").textContent = "Сборка " + r.system.build;
+  const h = location.hash.slice(1); page = PAGES.some(p => p[0] === h) ? h : "home";
+  renderNav(); render();
+}
+$("#lf").addEventListener("submit", async e => {
+  e.preventDefault(); $("#lerr").textContent = "";
+  const r = await api("POST", "/login", { password: $("#pw").value });
+  if (!r.ok) { $("#lerr").textContent = msg(r); return; }
+  $("#pw").value = ""; boot();
+});
+document.addEventListener("click", async e => { if (e.target.closest("#out,[data-logout]")) { await api("POST", "/logout", {}); showLogin(); } });
+setInterval(async () => { if ($("#app").hidden || document.hidden) return; const r = await api("GET", "/overview"); if (r.ok && (r.kpi.reports !== badges.reports || r.kpi.disputes !== badges.disputes)) { badges.reports = r.kpi.reports; badges.disputes = r.kpi.disputes; renderNav(); } }, 60000);
+boot();
 })();
 </script>
 </body>

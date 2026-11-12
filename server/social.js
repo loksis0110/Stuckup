@@ -110,7 +110,7 @@ module.exports = function makeSocial(ctx) {
   /* ---------- accounts created through Telegram or VK ---------- */
   async function socialLogin(kind, sid, name) {
     const idx = await db.get("x", kind + ":" + sid), u = idx ? await db.get("u", idx.uid) : null;
-    if (u) { if (u.banned) throw new Http(403, "banned"); return { body: { user: me(u), posts: await hooks.myPosts(u) }, cookies: loginCookies(u) }; }
+    if (u) { if (V.banned(u)) throw new Http(403, "banned"); return { body: { user: me(u), posts: await hooks.myPosts(u) }, cookies: loginCookies(u) }; }
     const token = A.newId(12);
     await db.put("so", token, { kind, sid, name: String(name || "").slice(0, 40), t: Date.now() });
     return { body: { signup: token, suggest: String(name || "").replace(/[^A-Za-zА-Яа-яЁё0-9_.-]/g, "").slice(0, 20) } };

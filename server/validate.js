@@ -110,4 +110,6 @@ function post(input, prof) {
   };
 }
 
-module.exports = { META, Bad, email, password, nick, nickKey, profile, blankProfile, post, rank, contacts, note };
+// a ban may be temporary
+function banned(u) { return !!(u && u.banned && !(u.banned.until && u.banned.until < Date.now())); }
+module.exports = { banned, META, Bad, email, password, nick, nickKey, profile, blankProfile, post, rank, contacts, note };

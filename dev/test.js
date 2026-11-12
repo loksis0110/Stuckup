@@ -261,16 +261,33 @@ test("admin zone", async () => {
   await a("PUT", "/api/me", { profile: { dc: "spam.king" } });
   const post = (await a("POST", "/api/posts", POST)).json.post;
   await b("POST", "/api/reports", { postId: post.id, reason: "spam" });
-  let ov = (await adm("GET", "/api/admin/overview")).json;
-  const rp = ov.reports.find(r => r.targetNick === "Spammer"); assert.ok(rp); assert.ok(ov.stats.users >= 2);
+  let ov = (await adm("GET", "/api/admin/overview")).json; assert.ok(ov.kpi.users >= 2); assert.ok(ov.kpi.reports >= 1); assert.equal(ov.series.length, 14);
+  const rp = (await adm("GET", "/api/admin/reports")).json.reports.find(r => r.targetNick === "Spammer"); assert.ok(rp); assert.equal(rp.against, 1);
   assert.equal((await a("POST", "/api/admin/act", { report: rp.id, action: "ban" })).json.error, "admin_auth"); // a normal session is not enough
   assert.equal((await adm("POST", "/api/admin/act", { report: rp.id, action: "ban" })).status, 200);
   assert.equal((await a("GET", "/api/me")).json.user, null);
   assert.equal((await a("POST", "/api/auth/login", { email: "ad1@example.com", password: "password1" })).json.error, "banned");
   assert.equal((await b("GET", "/api/posts")).json.posts.some(p => p.uid === ua.id), false);
-  ov = (await adm("GET", "/api/admin/overview")).json; assert.equal(ov.reports.some(r => r.targetNick === "Spammer"), false); assert.equal(ov.banned[0].nick, "Spammer");
+  assert.equal((await adm("GET", "/api/admin/reports")).json.reports.some(r => r.targetNick === "Spammer"), false);
+  assert.equal((await adm("GET", "/api/admin/users?f=banned")).json.users[0].nick, "Spammer");
+  const det = (await adm("GET", "/api/admin/users/" + ua.id)).json.user; assert.equal(det.nick, "Spammer"); assert.ok(det.banned); assert.equal(det.against.length, 1);
+  assert.ok((await adm("GET", "/api/admin/log")).json.log.some(x => x.action === "report:ban"));
+  assert.equal((await adm("GET", "/api/admin/users?q=spam")).json.total, 1);
   assert.equal((await adm("POST", "/api/admin/act", { user: "spammer", action: "unban" })).json.nick, "Spammer");
   assert.equal((await a("POST", "/api/auth/login", { email: "ad1@example.com", password: "password1" })).status, 200);
+  // temporary ban, rename, announcement, delete
+  assert.equal((await adm("POST", "/api/admin/act", { user: ua.id, action: "ban", days: 1, reason: "spam" })).status, 200);
+  assert.equal((await a("POST", "/api/auth/login", { email: "ad1@example.com", password: "password1" })).json.error, "banned");
+  const { db } = require("../server/index.js"); const raw = await db.get("u", ua.id); raw.banned.until = Date.now() - 1; await db.put("u", ua.id, raw);
+  assert.equal((await a("POST", "/api/auth/login", { email: "ad1@example.com", password: "password1" })).status, 200); // ban is over
+  assert.equal((await adm("POST", "/api/admin/act", { user: ua.id, action: "rename", nick: "Renamed1" })).json.nick, "Renamed1");
+  assert.equal((await a("GET", "/api/me")).json.user.nick, "Renamed1");
+  assert.ok((await adm("POST", "/api/admin/act", { action: "announce", text: "Завтра техработы с 3 до 4 утра" })).json.sent >= 2);
+  assert.equal((await b("GET", "/api/notifs")).json.notifs[0].k, "admin");
+  assert.equal((await adm("POST", "/api/admin/act", { user: ua.id, action: "delete", confirm: "wrong" })).json.error, "confirm");
+  assert.equal((await adm("POST", "/api/admin/act", { user: ua.id, action: "delete", confirm: "Renamed1" })).status, 200);
+  assert.equal((await a("GET", "/api/me")).json.user, null);
+  for (const path of ["/api/admin/posts", "/api/admin/teams", "/api/admin/comments", "/api/admin/system", "/api/admin/disputes"]) assert.equal((await adm("GET", path)).status, 200, path);
   delete process.env.ADMIN_PASSWORD;
 });
 
@@ -394,7 +411,7 @@ test("chat media: signed upload, media message, report and moderation", async ()
   assert.equal((await b("POST", "/api/chats/" + ua.id + "/report", { msg: got.id, reason: "toxic" })).status, 200);
   process.env.ADMIN_PASSWORD = "correct-horse-battery";
   await adm("POST", "/api/admin/login", { password: "correct-horse-battery" });
-  const rep = (await adm("GET", "/api/admin/overview")).json.reports.find(r => r.msg && r.msg.id === got.id);
+  const rep = (await adm("GET", "/api/admin/reports")).json.reports.find(r => r.msg && r.msg.id === got.id);
   assert.ok(rep && rep.mediaUrl);
   assert.equal((await adm("POST", "/api/admin/act", { report: rep.id, action: "remove" })).status, 200);
   const after = (await b("GET", "/api/chats/" + ua.id)).json.msgs.pop();
