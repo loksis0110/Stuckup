@@ -1,0 +1,100 @@
+[17:06:44] 1/7 install yc
+Yandex Cloud CLI 1.45.0 linux/amd64
+[17:06:52] 2/7 authorize
+key fields: created_at, id, key_algorithm, private_key, public_key, service_account_id
+[17:06:54] service account: ajeqjb8asbnql8t1h9hp, folder: b1g7n62tr9j79si1bmo6
+[17:06:54] 3/7 database
+[17:07:05] document api: https://docapi.serverless.yandexcloud.net/ru-central1/b1gkirsfognnrrugg73o/etn9dfji3qjbu3i5i788
+[17:07:05] 4/7 function
+[17:07:12] function: d4eoi3qjjb8uch1pfko6, package: 3428 KB
+[17:07:16] site url for links: https://stuckup.ru
+[17:07:16] mail: smtp via smtp.yandex.ru
+[17:07:16] secret ADMIN_PASSWORD: set
+[17:07:16] secret VK_CLIENT_ID: set
+[17:07:16] secret VK_CLIENT_SECRET: not set
+[17:07:16] secret FACEIT_API_KEY: set
+[17:07:16] storage
+[17:07:21] bucket: stuckup-files-b1g7n62tr9j79si1bmo6
+...1s...done (4s)
+[17:07:33] function version created (build bef14fc)
+[17:07:36] timer trigger: ok
+[17:07:36] 5/7 api gateway
+...1s...done (2s)
+[17:07:49] gateway: https://d5d1aq46i0a8ot27tcq3.nnekmrav.apigw.yandexcloud.net
+[17:07:49] 6/7 wait for the site
+[17:07:51] health: {"ok":true,"db":true,"mail":"smtp","media":true,"backup":{"t":1794498665306,"day":"2026-11-12","items":26,"bytes":1734},"build":"bef14fc","now":1794503271180}
+[17:07:53] mail test: {"ok":true}
+[17:07:53] telegram webhook state before: {"pending_update_count":3,"last_error_date":null,"last_error_message":null,"url":""}
+[17:07:54] telegram: webhook off (updates are pulled) {"ok":true,"result":true,"description":"Webhook is already deleted"}
+[17:08:01] telegram from the function: {"ok":false,"ms":6002,"err":"The operation was aborted due to timeout"}
+[17:08:11] outbound from the function: {"steam":"200 in 658ms","opendota":"200 in 603ms","faceit":"200 in 809ms","vk":"200 in 201ms","telegram":"FAIL The operation was aborted due to timeout"}
+[17:08:11] telegram bot: Stuckup_gg_bot
+[17:08:13] storage cors: {"cors":"200 "}
+[17:08:16] backup now: {"t":1794503295730,"day":"2026-11-12","items":26,"bytes":1734}
+[17:08:16] 7/7 smoke test
+  ok: home page
+  ok: static /robots.txt
+  ok: static /favicon.svg
+  ok: static /fonts/Onest.woff
+  ok: static /rules
+  ok: static /privacy
+  ok: 404 page
+  ok: register
+  ok: verify + session cookie
+  ok: save profile
+  ok: create listing
+  ok: feed for guests hides contacts
+  ok: session restored
+  ok: media upload slot
+  ok: upload to storage with the signed link
+  ok: media message
+  ok: receiver downloads the file
+  ok: delete account
+  ok: listing removed with the account
+SMOKE OK
+[17:08:51] 8/8 custom domain (problems here do not fail the deploy)
+[17:09:00] dns: stuckup.ru. ANAME -> d5d1aq46i0a8ot27tcq3.nnekmrav.apigw.yandexcloud.net.
+[17:09:06] dns: www.stuckup.ru. CNAME -> d5d1aq46i0a8ot27tcq3.nnekmrav.apigw.yandexcloud.net.
+[17:09:12] dns: stuckup.ru. TXT -> google-site-verification=a7s506NVngEIKuFJg9BIefbxJUG8cJEg1djQTl8A0D4
+jq: error (at <stdin>:61): Cannot index array with string "type"
+[17:09:15] dns txt: 
+[17:09:21] dns: TXT google-site-verification added
+[17:09:27] certificate fpqs85sn8hmgc3b4kpfk: ISSUED
+[17:09:33] dns: _acme-challenge.stuckup.ru. CNAME -> fpqs85sn8hmgc3b4kpfk.cm.yandexcloud.net.
+[17:09:39] dns: _acme-challenge.www.stuckup.ru. CNAME -> fpqs85sn8hmgc3b4kpfk.cm.yandexcloud.net.
+[17:09:42] domain attached: stuckup.ru
+ERROR: execute command: run command: x-request-id = e2e7ba8a-f0c1-42a8-9560-8dea8c1e0642 x-server-trace-id = 776d526d738a82d9:5f2c56093f3cfe54:07f14463a941e8b4:1 x-client-trace-id = 17b8a3d9-0248-4cd3-9ba5-efb52980f1ec rpc error: code = ResourceExhausted desc = Quota limit serverless.apiGatewaysDomains.count exceeded
+
+
+x-request-id: e2e7ba8a-f0c1-42a8-9560-8dea8c1e0642
+x-server-trace-id: 776d526d738a82d9:5f2c56093f3cfe54:07f14463a941e8b4:1
+x-client-trace-id: 17b8a3d9-0248-4cd3-9ba5-efb52980f1ec
+
+Use x-request-id, x-server-trace-id, x-client-trace-id for investigation of issues in cloud support
+
+gRPC status details:
+- '@type': type.googleapis.com/yandex.cloud.quota.QuotaFailure
+  violations:
+    - metric:
+        name: serverless.apiGatewaysDomains.count
+        limit: "1"
+        usage: 1
+      required: "2"
+- '@type': type.googleapis.com/google.rpc.RequestInfo
+  request_id: e2e7ba8a-f0c1-42a8-9560-8dea8c1e0642
+If you are going to ask for help of cloud support, please send the following trace file: /home/runner/.config/yandex-cloud/logs/2026-11-12T17-09-42.329-yc_serverless_api-gateway_add-domain.txt
+[17:09:45] add-domain failed for www.stuckup.ru
+Attach domain to the specified API Gateway
+
+Usage:
+  yc serverless api-gateway add-domain <API-GATEWAY-NAME>|<API-GATEWAY-ID> --domain <DOMAIN> --certificate-id <CERTIFICATE-ID> [Flags...] [Global Flags...]
+
+Flags:
+      --id string               Api-gateway id.
+      --name string             Api-gateway name.
+      --async                   Display information about the operation in progress, without waiting for the operation to complete.
+  -d, --domain string           FQDN of attaching domain.
+  -c, --certificate-id string   Id of domain certificate.
+
+[17:09:47] check: 200
+[17:09:47] DEPLOY OK https://d5d1aq46i0a8ot27tcq3.nnekmrav.apigw.yandexcloud.net
