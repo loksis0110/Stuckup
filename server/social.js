@@ -217,6 +217,16 @@ module.exports = function makeSocial(ctx) {
     if (changed) await db.put("u", u.id, u);
     return { body: { user: me(u) } };
   }
+  // used on sign-in, posting and renewing: refresh verified ranks that are older than maxAge
+  async function autoRefresh(u, maxAge) {
+    if (!u.steam) return false;
+    const now = Date.now(), v = u.ver || {}, last = Math.max((v.faceit && v.faceit.t) || 0, (v.medal && v.medal.t) || 0, u.steam.checked || 0);
+    if (now - last < maxAge) return false;
+    u.steam.checked = now;
+    try { const r = await dotaRank(u.steam.id); if (r) setVerified(u, "dota", r, { src: "steam" }); } catch (e) {}
+    try { await faceitFromSteam(u); } catch (e) {}
+    return true;
+  }
   async function unlink(req, what) {
     const u = await need(req);
     if (what === "steam" && u.steam) { await db.del("x", "steam:" + u.steam.id); delete u.steam; if (u.ver) delete u.ver.medal; what = "faceit"; }
@@ -261,5 +271,5 @@ module.exports = function makeSocial(ctx) {
     }
     return out;
   }
-  return { routes, config, push, pushMessage, userGone, tgCheck, netCheck };
+  return { routes, config, push, pushMessage, userGone, tgCheck, netCheck, autoRefresh };
 };

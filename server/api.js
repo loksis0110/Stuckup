@@ -29,7 +29,9 @@ module.exports = function makeApi(db, opts) {
     return u;
   }
   async function need(req) { const u = await currentUser(req); if (!u) throw new Http(401, "auth"); return u; }
+  const WEEK = 7 * 86400000;
   function me(u) {
+    if (u.archive && u.archive.length) u.archive = u.archive.filter(a => Date.now() - (a.ended || 0) < WEEK);
     return { id: u.id, email: u.email, nick: u.nick, profile: u.profile, favs: u.favs || [], blocked: u.blocked || [], archive: u.archive || [], stacks: u.stacks || {}, created: u.created,
       hasPass: !!u.pass, tg: u.tg ? { name: u.tg.name, on: !u.tg.off } : null, vk: !!u.vk, steam: !!u.steam, faceit: u.faceit ? u.faceit.nick : null, ver: u.ver || {} };
   }
@@ -161,9 +163,18 @@ module.exports = function makeApi(db, opts) {
   }
 
   /* ---------- account ---------- */
+  // re-reads verified ranks from FACEIT / OpenDota when they are older than maxAge and updates the user's live listings
+  async function freshRanks(u, maxAge) {
+    try {
+      if (!(await social.autoRefresh(u, maxAge))) return;
+      await db.put("u", u.id, u);
+      for (const p of await myPosts(u)) { const r = u.ver[p.r.sys] && (u.profile.ranks[p.game] || {})[p.r.sys]; if (r && JSON.stringify(r) !== JSON.stringify(p.r)) { p.r = r; p.ver = true; await db.put("p", p.id, p); feed = null; feedGen++; } }
+    } catch (e) { console.error("rank refresh:", e.message); }
+  }
   async function getMe(req) {
     const u = await currentUser(req);
     if (!u) return { body: { user: null } };
+    await freshRanks(u, 3 * 3600000);
     return { body: { user: me(u), posts: await myPosts(u) } };
   }
   async function putMe(req) {
@@ -172,8 +183,8 @@ module.exports = function makeApi(db, opts) {
     if (b.nick != null && String(b.nick).trim() !== u.nick) {
       const nick = V.nick(b.nick), key = V.nickKey(nick), oldKey = V.nickKey(u.nick);
       if (key !== oldKey) {
-        await limit("nick:" + u.id, 3, 86400000);
         if (await db.get("n", key)) throw new Http(409, "nick_taken", { field: "nick" });
+        await limit("nick:" + u.id, 1, 86400000);
         await db.put("n", key, { uid: u.id }); await db.del("n", oldKey);
       }
       u.nick = nick; touchPosts = true; renamed = true;
@@ -239,6 +250,7 @@ module.exports = function makeApi(db, opts) {
   async function createPost(req) {
     const u = await need(req), prof = u.profile;
     if (!prof.dc && !prof.tg) throw new Http(400, "need_contact");
+    await freshRanks(u, 1800000);
     const f = V.post(req.json, prof);
     const vsys = META.games[f.game].sysOf[f.mode], vrank = u.ver && u.ver[vsys] ? (prof.ranks[f.game] || {})[vsys] : null;
     if (vrank) f.r = vrank;
@@ -277,6 +289,8 @@ module.exports = function makeApi(db, opts) {
   async function renewPost(req, id) {
     const { u, p } = await ownPost(req, id), now = Date.now();
     if (!p || p.exp <= now) throw new Http(404, "post_gone");
+    await freshRanks(u, 1800000);
+    const fr = u.ver && u.ver[p.r.sys] && (u.profile.ranks[p.game] || {})[p.r.sys]; if (fr) p.r = fr;
     await limit("renew:" + u.id, 60, 3600000);
     p.t0 = now; p.exp = now + p.dur * 60000;
     await db.put("p", p.id, p);

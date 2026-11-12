@@ -122,3 +122,10 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .panel.lv-fold.shut .panel-h > *:not(h2), .panel.lv-fold.shut .field:has(> h2.sec) > *:not(h2) { display: none !important; }
 .pgrid { gap: 10px; }
 @media (max-width: 560px) { .lv-rn .mine-tag { display: none; } }
+
+/* desktop: all games are visible at once, no horizontal scrolling */
+@media (min-width: 820px) { .rail { flex-wrap: wrap; overflow: visible; } }
+/* profile: field hints appear only while the field is being edited or has an error */
+#ps-main .cgrid .hint { display: none; }
+#ps-main .cgrid .field:focus-within .hint, #ps-main .cgrid .hint.err { display: block; }
+#ps-main .p-head { flex-wrap: wrap; gap: 10px 12px; }

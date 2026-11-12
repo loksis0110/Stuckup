@@ -40,7 +40,7 @@ const T = {
     cvis_note: { all: "Контакты видны в объявлениях всем.", chat: "Контакты откроются собеседнику, когда вы ответите ему в чате.", stack: "Контакты видят только игроки, которых вы позвали в стак." },
     my_langs: "Языки общения", my_region: "Регион", my_ranks: "Мои ранги", my_ranks_note: "По ним работает «Мой уровень», и ими заполняются новые объявления.",
     not_set: "не указан", saved_auto: "Сохранено", active_posts: "Активные объявления", no_posts: "Активных объявлений нет.",
-    archive: "Архив", archive_note: "Закрытые объявления хранятся 30 дней, их можно перезапустить.", archive_empty: "Архив пуст.", repost: "Опубликовать снова",
+    archive: "Архив", archive_note: "Снятые объявления хранятся неделю, любое можно разместить заново.", archive_empty: "Архив пуст.", repost: "Опубликовать снова",
     reason: { expired: "срок истёк", replaced: "заменено новым", stack: "стак собран" },
     reset_demo: "Сбросить демо-данные", reset_confirm: "Удалить всё, что вы сделали в демо: объявления, переписку, команды, профиль и решения в админке?", yes_reset: "Да, сбросить", cancel: "Отмена", reset_done: "Демо-данные сброшены",
     new_post: "Новое объявление", s_game: "Игра", s_mode: "Режим", s_rank: "Ранг", s_roles: "Роли", s_group: "Группа", s_note: "Описание", s_contacts: "Контакты", s_time: "Сколько показывать",
@@ -51,9 +51,9 @@ const T = {
     exp_rules: ["Срок выбирается при публикации: от 1 часа до 3 дней. Потом объявление само исчезает из ленты.", "За 15 минут до конца приходит уведомление, продлить можно в один клик.", "Собрали стак — объявление закрывается автоматически.", "В каждой игре у вас одно активное объявление: новое заменяет старое.", "Если вы не заходили 3 дня, ваши объявления снимаются.", "Закрытые объявления 30 дней лежат в архиве профиля, оттуда их можно перезапустить."],
     setup_title: "Настройте профиль за минуту", setup_text: "Ник, ранги, Discord или Telegram. Тогда «Мой уровень» покажет игроков вашего уровня, а объявления будут заполняться сами.", setup_btn: "Заполнить профиль", dismiss: "Позже",
     lang_ru: "Русский", lang_en: "Английский", level_n: l => l + " уровень", elo_ph: "ELO, например 1420", premier_ph: "Рейтинг, например 15400",
-    durs: ["1 ч", "3 ч", "12 ч", "24 ч", "3 дня"], close: "Закрыть", stars: "звёзд",
+    durs: ["1 ч", "3 ч", "12 ч", "24 ч", "2 дня"], close: "Закрыть", stars: "звёзд",
     style: "Стиль игры", styles: { fun: "На фан", serious: "Серьёзно", train: "Тренировка" },
-    safety: "Безопасность", stags: { adult: "18+", nomat: "Без мата", newbie: "Новичкам рады", women: "Женский стак" }, adult_need: "Отметка 18+ доступна, если в профиле указано, что вам есть 18.",
+    safety: "Безопасность", stags: { adult: "18+", nomat: "Без мата", newbie: "Новичкам рады", women: "Женский стак", men: "Мужской стак" }, adult_need: "Отметка 18+ доступна, если в профиле указано, что вам есть 18.",
     rep_n: (p, n) => p + "% · " + n + " " + plural(n, ["отзыв", "отзыва", "отзывов"]), rep_none: "нет отзывов", noshow_n: n => n + " " + plural(n, ["неявка", "неявки", "неявок"]),
     rep_tags: { kind: "Адекватный", comms: "Хорошая связь", skill: "Сильный игрок", leader: "Хороший капитан", punctual: "Пунктуальный", toxic: "Токсичный", rage: "Бросает игры" },
     rate: "Оценить", rate_title: "Как прошла игра?", rate_up: "Сыграл бы снова", rate_down: "Не хочу снова", rate_ns: "Не пришёл в игру", rate_send: "Отправить отзыв", rated: "Спасибо, отзыв учтён",
@@ -144,7 +144,7 @@ const T = {
     cvis_note: { all: "Everyone sees your contacts on your listings.", chat: "A player sees your contacts once you reply to them in chat.", stack: "Only players you added to your stack see your contacts." },
     my_langs: "Languages", my_region: "Region", my_ranks: "My ranks", my_ranks_note: "Used by “My level” and to prefill new listings.",
     not_set: "not set", saved_auto: "Saved", active_posts: "Active listings", no_posts: "No active listings.",
-    archive: "Archive", archive_note: "Closed listings are kept for 30 days and can be relaunched.", archive_empty: "Archive is empty.", repost: "Post again",
+    archive: "Archive", archive_note: "Closed listings are kept for a week; any of them can be posted again.", archive_empty: "Archive is empty.", repost: "Post again",
     reason: { expired: "expired", replaced: "replaced", stack: "stack filled" },
     reset_demo: "Reset demo data", reset_confirm: "Delete everything you did in the demo: listings, chats, teams, profile and admin decisions?", yes_reset: "Yes, reset", cancel: "Cancel", reset_done: "Demo data reset",
     new_post: "New listing", s_game: "Game", s_mode: "Mode", s_rank: "Rank", s_roles: "Roles", s_group: "Group", s_note: "Description", s_contacts: "Contacts", s_time: "How long to show",
@@ -155,9 +155,9 @@ const T = {
     exp_rules: ["You pick the duration when posting: 1 hour to 3 days. Then the listing leaves the feed on its own.", "You get a notification 15 minutes before it ends and can extend with one tap.", "Stack filled — the listing closes automatically.", "One active listing per game: a new one replaces the old.", "If you haven't visited for 3 days, your listings are taken down.", "Closed listings stay in your profile archive for 30 days and can be relaunched."],
     setup_title: "Set up your profile in a minute", setup_text: "Nickname, ranks, Discord or Telegram. Then “My level” shows players at your level and new listings fill themselves in.", setup_btn: "Fill in profile", dismiss: "Later",
     lang_ru: "Russian", lang_en: "English", level_n: l => "Level " + l, elo_ph: "Elo, e.g. 1420", premier_ph: "Rating, e.g. 15400",
-    durs: ["1 h", "3 h", "12 h", "24 h", "3 days"], close: "Close", stars: "stars",
+    durs: ["1 h", "3 h", "12 h", "24 h", "2 days"], close: "Close", stars: "stars",
     style: "Play style", styles: { fun: "For fun", serious: "Tryhard", train: "Practice" },
-    safety: "Safety", stags: { adult: "18+", nomat: "No swearing", newbie: "Newbie friendly", women: "Women's stack" }, adult_need: "The 18+ tag requires confirming you're 18+ in your profile.",
+    safety: "Safety", stags: { adult: "18+", nomat: "No swearing", newbie: "Newbie friendly", women: "Women's stack", men: "Men's stack" }, adult_need: "The 18+ tag requires confirming you're 18+ in your profile.",
     rep_n: (p, n) => p + "% · " + n + " reviews", rep_none: "no reviews yet", noshow_n: n => n + " no-show" + (n === 1 ? "" : "s"),
     rep_tags: { kind: "Friendly", comms: "Good comms", skill: "Skilled", leader: "Good leader", punctual: "On time", toxic: "Toxic", rage: "Leaves games" },
     rate: "Rate", rate_title: "How was the game?", rate_up: "Would play again", rate_down: "Not again", rate_ns: "Didn't show up", rate_send: "Submit review", rated: "Thanks, review saved",
@@ -309,7 +309,7 @@ Object.assign(T.en, {
 });
 
 /* ================= games & rank systems ================= */
-const DURS = [60, 180, 720, 1440, 4320];
+const DURS = [60, 180, 720, 1440, 2880];
 const GAME_KEYS = ["dota", "cs2", "valorant", "lol", "deadlock", "rivals", "apex", "pubg", "fortnite", "standoff", "pubgm"];
 const SHOOTER_ROLES = { entry: ["Энтри", "Entry"], awp: ["Снайпер", "AWPer"], support: ["Саппорт", "Support"], lurker: ["Люркер", "Lurker"], igl: ["IGL", "IGL"] };
 const BR_ROLES = { fragger: ["Фраггер", "Fragger"], sniper: ["Снайпер", "Sniper"], support: ["Саппорт", "Support"], igl: ["IGL", "IGL"], driver: ["Водитель", "Driver"] };
@@ -401,7 +401,8 @@ const SYS = {
 const SYS_GAME = { medal: "dota", premier: "cs2", faceit: "cs2", comp: "cs2", val: "valorant", lol: "lol", dl: "deadlock", rv: "rivals", apex: "apex", pubg: "pubg", fn: "fortnite", so: "standoff", pm: "pubgm" };
 const REGIONS = { ru: ["Россия", "Russia"], eue: ["Европа · восток", "EU East"], euw: ["Европа · запад", "EU West"], asia: ["Азия", "Asia"], na: ["Сев. Америка", "North America"] };
 const STYLES = ["fun", "serious", "train"];
-const STAGS = ["adult", "nomat", "newbie", "women"];
+const STAGS = ["adult", "nomat", "newbie", "women", "men"];
+const SAFE_TAGS = ["adult", "nomat", "newbie"], PARTY_TAGS = ["women", "men"];
 const REP_POS = ["kind", "comms", "skill", "leader", "punctual"];
 const REP_NEG = ["toxic", "rage"];
 
@@ -956,8 +957,8 @@ function resetRange() { S.f.rmin = 0; S.f.rmax = S.f.sys === "any" ? 99 : stepLa
 function filterBody(pre) {
   const f = S.f, g = S.game;
   let h = `<div class="field"><label class="lbl" for="${pre}-q">${esc(t("search"))}</label><div class="search">${ICON.search}<input class="inp" id="${pre}-q" data-f="q" type="search" autocomplete="off" placeholder="${esc(t("search_ph"))}" value="${esc(f.q)}"></div></div>`;
-  if (g === "all") h += `<p class="hint">${esc(t("pick_game"))}</p>`;
-  else {
+  h += `<div class="field"><span class="lbl">${esc(t("s_game"))}</span><div class="chips"><button class="chip" data-game="all" aria-pressed="${g === "all"}">${esc(t("all"))}</button>${railOrder().map(k => `<button class="chip" data-game="${k}" aria-pressed="${g === k}">${esc(gshort(k))}</button>`).join("")}</div>${g === "all" ? `<p class="hint">${esc(S.lang === "ru" ? "Выберите игру — появятся режим, ранг и роль." : "Pick a game to filter by mode, rank and role.")}</p>` : ""}</div>`;
+  if (g !== "all") {
     const G = GAMES[g];
     h += `<div class="field"><span class="lbl">${esc(t("mode"))}</span><div class="chips">` + Object.keys(G.modes).map(m => `<button class="chip" data-fm="${m}" aria-pressed="${f.modes.includes(m)}">${esc(modeName(g, m))}</button>`).join("") + "</div></div>";
     h += `<div class="field"><span class="lbl">${esc(t("rank"))}</span>`;
@@ -971,7 +972,8 @@ function filterBody(pre) {
     h += `<div class="field"><span class="lbl">${esc(t("roles"))}</span><div class="chips">` + Object.keys(G.roles).map(r => `<button class="chip" data-fr="${r}" aria-pressed="${f.roles.includes(r)}">${esc(roleName(g, r))}</button>`).join("") + "</div></div>";
   }
   h += `<div class="field"><span class="lbl">${esc(t("style"))}</span><div class="chips">${STYLES.map(s => `<button class="chip" data-fst="${s}" aria-pressed="${f.styles.includes(s)}">${esc(t("styles")[s])}</button>`).join("")}</div></div>`;
-  h += `<div class="field"><span class="lbl">${esc(t("safety"))}</span><div class="chips">${STAGS.map(s => `<button class="chip" data-fsg="${s}" aria-pressed="${f.stags.includes(s)}">${esc(t("stags")[s])}</button>`).join("")}</div></div>`;
+  h += `<div class="field"><span class="lbl">${esc(t("safety"))}</span><div class="chips">${SAFE_TAGS.map(s => `<button class="chip" data-fsg="${s}" aria-pressed="${f.stags.includes(s)}">${esc(t("stags")[s])}</button>`).join("")}</div></div>`;
+  h += `<div class="field"><span class="lbl">${esc(S.lang === "ru" ? "Состав стака" : "Stack")}</span><div class="seg" role="group"><button data-fparty="any" aria-pressed="${!PARTY_TAGS.some(x => f.stags.includes(x))}">${esc(S.lang === "ru" ? "Не важно" : "Any")}</button>${PARTY_TAGS.map(s => `<button data-fparty="${s}" aria-pressed="${f.stags.includes(s)}">${esc(t("stags")[s])}</button>`).join("")}</div></div>`;
   h += `<div class="field"><span class="lbl">${esc(t("f_more"))}</span><div class="chips">${["mic", "contacts", "fresh"].map(k => `<button class="chip" data-q="${k}" aria-pressed="${!!S.q[k]}">${esc(t("q_" + k))}</button>`).join("")}</div></div>`;
   h += `<div class="field"><span class="lbl">${esc(t("f_prem"))} <span class="pro">PRO</span></span><div class="chips">${["rep90", "nons", "sametime"].map(k => S.prem ? `<button class="chip" data-q="${k}" aria-pressed="${!!S.q[k]}">${esc(t("q_" + k))}</button>` : `<button class="chip lk" data-action="premium" title="${esc(t("prem_need"))}">${ICON.lock} ${esc(t("q_" + k))}</button>`).join("")}</div></div>`;
   h += `<div class="field"><label class="lbl" for="${pre}-reg">${esc(t("region"))}</label><select class="inp" id="${pre}-reg" data-f="region"><option value="any">${esc(t("any"))}</option>` +
@@ -1262,11 +1264,12 @@ function formBody() {
   h += sec(t("s_mode"), `<div class="chips">${Object.keys(G.modes).map(m => `<button type="button" class="chip" data-pm="${m}" aria-pressed="${m === F.mode}">${esc(modeName(F.game, m))}</button>`).join("")}</div>`);
   h += sec(t("s_rank") + " · " + sysLabel(sys), rankInput("pfr", sys, F.r, false) + (F.err === "rank" ? `<p class="ferr">${esc(t("need_rank"))}</p>` : ""));
   h += sec(t("s_roles"), `<div class="chips">${Object.keys(G.roles).map(r => `<button type="button" class="chip" data-prl="${r}" aria-pressed="${F.roles.includes(r)}">${esc(roleName(F.game, r))}</button>`).join("")}</div>`);
-  h += sec(t("s_group"), `<div class="grp"><span class="hint" style="color:var(--fg-2)">${esc(t("have"))}</span><span class="stepper"><button type="button" data-have="-1"${F.have <= 1 ? " disabled" : ""} aria-label="−">−</button><output class="mono">${F.have}/${size}</output><button type="button" data-have="1"${F.have >= size - 1 ? " disabled" : ""} aria-label="+">+</button></span><span class="hint">${esc(t("have_hint", F.have, size))}</span></div>
+  h += sec(t("s_group"), `<div class="grp"><span class="hint" style="color:var(--fg-2)">${esc(S.lang === "ru" ? "Сколько игроков ищете" : "How many players you need")}</span><span class="stepper"><button type="button" data-have="1"${F.have >= size - 1 ? " disabled" : ""} aria-label="−">−</button><output class="mono">${size - F.have}</output><button type="button" data-have="-1"${F.have <= 1 ? " disabled" : ""} aria-label="+">+</button></span><span class="hint">${esc(S.lang === "ru" ? "В команде " + size + " — можно искать и одного." : "Team of " + size + " — you can look for just one.")}</span></div>
 <div class="row2"><div class="field"><label class="lbl" for="pf2-reg">${esc(t("region"))}</label><select class="inp" id="pf2-reg">${Object.keys(REGIONS).map(r => `<option value="${r}"${F.region === r ? " selected" : ""}>${esc(regionName(r))}</option>`).join("")}</select></div>
 <label class="check" style="align-self:end;padding-bottom:10px"><input type="checkbox" id="pf2-mic"${F.mic ? " checked" : ""}> ${esc(t("mic"))}</label></div>`);
   h += sec(t("style"), `<div class="seg" role="group" aria-label="${esc(t("style"))}">${STYLES.map(s => `<button type="button" data-pst="${s}" aria-pressed="${F.style === s}">${esc(t("styles")[s])}</button>`).join("")}</div>
-<div class="chips">${STAGS.map(s => `<button type="button" class="chip" data-psg="${s}" aria-pressed="${F.stags.includes(s)}"${s === "adult" && !pr.adult ? " disabled" : ""}>${esc(t("stags")[s])}</button>`).join("")}</div>${pr.adult ? "" : `<p class="hint">${esc(t("adult_need"))}</p>`}`);
+<div class="chips">${SAFE_TAGS.map(s => `<button type="button" class="chip" data-psg="${s}" aria-pressed="${F.stags.includes(s)}"${s === "adult" && !pr.adult ? " disabled" : ""}>${esc(t("stags")[s])}</button>`).join("")}</div>${pr.adult ? "" : `<p class="hint">${esc(t("adult_need"))}</p>`}
+<div class="field" style="margin-top:12px"><span class="lbl">${esc(S.lang === "ru" ? "Состав стака" : "Stack")}</span><div class="seg" role="group"><button type="button" data-pparty="any" aria-pressed="${!PARTY_TAGS.some(x => F.stags.includes(x))}">${esc(S.lang === "ru" ? "Не важно" : "Any")}</button>${PARTY_TAGS.map(x => `<button type="button" data-pparty="${x}" aria-pressed="${F.stags.includes(x)}">${esc(t("stags")[x])}</button>`).join("")}</div></div>`);
   h += sec(t("s_note"), `<textarea class="inp" id="pf2-note" maxlength="200" placeholder="${esc(t("note_ph"))}">${esc(F.note)}</textarea><div class="counter" id="pf2-cnt">${F.note.length}/200</div>`);
   h += sec(t("s_contacts"), `<div class="cgrid"><div class="field"><label class="lbl" for="pf2-dc">Discord</label><div class="pre"><span>${ICON.headset}</span><input class="inp mono" id="pf2-dc" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="${esc(t("dc_ph"))}" value="${esc(F.dc != null ? F.dc : pr.dc)}"></div></div>
 <div class="field"><label class="lbl" for="pf2-tg">Telegram</label><div class="pre"><span>@</span><input class="inp mono" id="pf2-tg" autocapitalize="off" spellcheck="false" maxlength="60" placeholder="${esc(t("tg_ph"))}" value="${esc(F.tg != null ? F.tg : pr.tg)}"></div></div></div>
@@ -1305,6 +1308,8 @@ function postSheet(fromArchive) {
       if (pd) F.dur = +pd.dataset.pd;
       if (pst) F.style = pst.dataset.pst;
       if (psg) { const s = psg.dataset.psg, i = F.stags.indexOf(s); i >= 0 ? F.stags.splice(i, 1) : F.stags.push(s); }
+      const ppt = e.target.closest("[data-pparty]");
+      if (ppt) { F.stags = F.stags.filter(x => !PARTY_TAGS.includes(x)); if (ppt.dataset.pparty !== "any") F.stags.push(ppt.dataset.pparty); rerenderForm(); return; }
       F.err = ""; rerenderForm();
     });
     ov.addEventListener("input", e => { if (e.target.id === "pf2-note") $("#pf2-cnt").textContent = e.target.value.length + "/200"; });
@@ -1473,7 +1478,7 @@ function premiumSheet() {
   openSheet(t("prem_title"), body, S.prem ? `<button class="btn ghost" id="premOff">${esc(t("prem_cancel"))}</button>` : `<button class="btn ghost" data-action="close-modal">${esc(t("cancel"))}</button><button class="btn primary" id="premOn">${esc(t("prem_buy"))}</button>`, ov => {
     const on = ov.querySelector("#premOn"), off = ov.querySelector("#premOff");
     if (on) on.addEventListener("click", () => { S.prem = true; S.posts.forEach(p => { p.promo = true; }); save(); closeModal(); renderAll(); toast(t("prem_on")); });
-    if (off) off.addEventListener("click", () => { S.prem = false; S.posts.forEach(p => { p.promo = false; if (p.dur === PREM_DUR) p.dur = 4320; }); ["rep90", "nons", "sametime"].forEach(k => { S.q[k] = false; }); save(); closeModal(); renderAll(); toast(t("prem_off")); });
+    if (off) off.addEventListener("click", () => { S.prem = false; S.posts.forEach(p => { p.promo = false; if (p.dur === PREM_DUR) p.dur = 2880; }); ["rep90", "nons", "sametime"].forEach(k => { S.q[k] = false; }); save(); closeModal(); renderAll(); toast(t("prem_off")); });
   });
 }
 
@@ -2026,6 +2031,8 @@ document.addEventListener("click", e => {
     if (k === "match" && !S.q.match && !hasAnyRank()) { toast(t("need_rank_match"), { label: t("open_profile"), fn: () => setView("profile") }); return; }
     S.q[k] = !S.q[k]; $$(`[data-q="${k}"]`).forEach(b => b.setAttribute("aria-pressed", String(S.q[k]))); renderFeed(); renderQuick(); const sn = $("#showN"); if (sn) sn.textContent = t("show_n", filtered().length); return;
   }
+  const fpt = e.target.closest("[data-fparty]");
+  if (fpt) { S.f.stags = S.f.stags.filter(x => !PARTY_TAGS.includes(x)); if (fpt.dataset.fparty !== "any") S.f.stags.push(fpt.dataset.fparty); renderFilters(); afterFilter(); return; }
   for (const [attr, key] of [["fm", "modes"], ["fr", "roles"], ["fst", "styles"], ["fsg", "stags"]]) {
     const el = e.target.closest("[data-" + attr + "]");
     if (el) { const v = el.dataset[attr], a = S.f[key], i = a.indexOf(v); i >= 0 ? a.splice(i, 1) : a.push(v); $$(`[data-${attr}="${v}"]`).forEach(b => b.setAttribute("aria-pressed", String(i < 0))); afterFilter(); return; }

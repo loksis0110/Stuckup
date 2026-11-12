@@ -13,7 +13,7 @@ let AU = null;                       // state of the sign-in sheet
 Object.assign(T.ru, {
   demo_tag: "бета", demo_line: "", about_title: "Stuckup — поиск тиммейтов",
   about_text: "Stuckup — поиск тиммейтов своего ранга в Dota 2, CS2 (Premier и FACEIT), Valorant, League of Legends, Deadlock, Marvel Rivals, Apex Legends, PUBG, Fortnite, Standoff 2 и PUBG Mobile. Разместите объявление — и игроки напишут вам в Discord или Telegram.",
-  exp_rules: ["Срок выбирается при публикации: от 1 часа до 3 дней. Потом объявление само исчезает из ленты.", "Продлить объявление можно в один клик — в ленте или в профиле.", "В каждой игре у вас одно активное объявление: новое заменяет старое."],
+  exp_rules: ["Срок выбирается при публикации: от 1 часа до 2 дней. Потом объявление само исчезает из ленты.", "Продлить объявление можно в один клик — в ленте или в профиле.", "В каждой игре у вас одно активное объявление: новое заменяет старое."],
   replaced: "Прошлое объявление в этой игре заменено", expired_toast: "Срок объявления истёк",
   favs_empty: "Отмечайте звёздочкой тех, с кем хорошо сыграли, — их объявления будут первыми в ленте.",
   blocked_toast: n => n + " в чёрном списке: его объявления скрыты", reported: "Жалоба отправлена модераторам.",
@@ -46,7 +46,7 @@ Object.assign(T.ru, {
   lv_code: "Код из 6 цифр", lv_resend: "Отправить ещё раз", lv_resent: "Код отправлен ещё раз",
   lv_dev_code: c => "Почта ещё не подключена, поэтому код показан здесь: " + c,
   lv_reset_hint: "Укажите почту аккаунта — пришлём код для смены пароля.",
-  lv_acc: "Аккаунт", lv_nick_change: "Изменить ник", lv_nick_title: "Новый ник", lv_nick_saved: "Ник изменён", lv_nick_limit: "Ник можно менять не чаще 3 раз в сутки.",
+  lv_acc: "Аккаунт", lv_nick_change: "Изменить ник", lv_nick_title: "Новый ник", lv_nick_saved: "Ник изменён", lv_nick_limit: "Ник можно менять один раз в сутки.",
   lv_c_note: "Контакты из профиля попадают в ваши объявления. Их видят только вошедшие игроки.",
   lv_del_acc: "Удалить аккаунт", lv_del_acc_t: "Аккаунт, профиль и объявления будут удалены без возможности восстановления. Для подтверждения введите пароль.", lv_del_acc_done: "Аккаунт удалён",
   lv_people: "Игроки", lv_posts: "Объявления", lv_contacts_btn: "Контакты",
@@ -64,7 +64,7 @@ Object.assign(T.ru, {
 Object.assign(T.en, {
   demo_tag: "beta", demo_line: "", about_title: "Stuckup — find teammates",
   about_text: "Stuckup helps you find teammates of your rank in Dota 2, CS2 (Premier and FACEIT), Valorant, League of Legends, Deadlock, Marvel Rivals, Apex Legends, PUBG, Fortnite, Standoff 2 and PUBG Mobile. Post a listing and players will message you on Discord or Telegram.",
-  exp_rules: ["You pick the duration when posting: 1 hour to 3 days. Then the listing leaves the feed on its own.", "You can extend a listing with one tap — in the feed or in your profile.", "One active listing per game: a new one replaces the old."],
+  exp_rules: ["You pick the duration when posting: 1 hour to 2 days. Then the listing leaves the feed on its own.", "You can extend a listing with one tap — in the feed or in your profile.", "One active listing per game: a new one replaces the old."],
   replaced: "Your previous listing for this game was replaced", expired_toast: "Your listing has expired",
   favs_empty: "Star the people you enjoyed playing with — their listings will come first in the feed.",
   blocked_toast: n => n + " is blocked: their listings are hidden", reported: "Report sent to the moderators.",
@@ -96,7 +96,7 @@ Object.assign(T.en, {
   lv_code: "6-digit code", lv_resend: "Send again", lv_resent: "Code sent again",
   lv_dev_code: c => "Email is not connected yet, so the code is shown here: " + c,
   lv_reset_hint: "Enter your account email — we will send a code to change the password.",
-  lv_acc: "Account", lv_nick_change: "Change nickname", lv_nick_title: "New nickname", lv_nick_saved: "Nickname changed", lv_nick_limit: "You can change the nickname up to 3 times a day.",
+  lv_acc: "Account", lv_nick_change: "Change nickname", lv_nick_title: "New nickname", lv_nick_saved: "Nickname changed", lv_nick_limit: "You can change the nickname once a day.",
   lv_c_note: "Profile contacts go into your listings. Only signed-in players see them.",
   lv_del_acc: "Delete account", lv_del_acc_t: "Your account, profile and listings will be deleted for good. Enter your password to confirm.", lv_del_acc_done: "Account deleted",
   lv_people: "Players", lv_posts: "Listings", lv_contacts_btn: "Contacts",
@@ -541,7 +541,7 @@ function renderProfile() {
   const pr = S.profile, mine = S.posts.filter(p => p.exp > Date.now()), sec = { main: t("profile"), games: t("my_games"), posts: t("lv_posts"), people: t("lv_people"), acc: t("lv_acc") };
   let h = `<div class="pgrid"><nav class="psec-nav" aria-label="${esc(t("profile"))}">${Object.keys(sec).map(k => `<button data-action="scrollto" data-t="ps-${k}">${esc(sec[k])}</button>`).join("")}</nav>`;
   h += `<div class="panel" id="ps-main"><div class="panel-h"><h2 class="sec">${esc(t("profile"))}</h2><span class="sv" id="psv" aria-live="polite"></span></div>
-<div class="p-head"><span id="pAv">${avatar(pr.nick || "?", false)}</span><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email)}</span></div><button class="btn small" data-action="lv-nick">${esc(t("lv_nick_change"))}</button></div>
+<div class="p-head"><span id="pAv">${avatar(pr.nick || "?", false)}</span><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email)}</span></div><button class="btn small" data-action="lv-nick">${esc(t("lv_nick_change"))}</button><button class="btn ghost small" data-action="lv-logout">${esc(t("lv_logout"))}</button></div>
 <div class="row2" style="gap:14px"><div class="field"><span class="lbl">${esc(t("my_langs"))}</span><div class="chips">${["ru", "en"].map(l => `<button class="chip" data-pl="${l}" aria-pressed="${pr.langs.includes(l)}">${esc(t("lang_" + l))}</button>`).join("")}</div></div>
 <div class="field"><label class="lbl" for="pf-reg">${esc(t("my_region"))}</label><select class="inp" id="pf-reg">${Object.keys(REGIONS).map(r => `<option value="${r}"${pr.region === r ? " selected" : ""}>${esc(regionName(r))}</option>`).join("")}</select></div></div>
 <div class="field"><span class="lbl">${esc(t("when_play"))}</span><div class="chips">${TIMES.map(x => `<button class="chip" data-ptime="${x}" aria-pressed="${pr.time.includes(x)}">${esc(t("times")[x])}</button>`).join("")}${["wd", "we"].map(x => `<button class="chip" data-pdays="${x}" aria-pressed="${(pr.days || []).includes(x)}">${esc(t("days2")[x])}</button>`).join("")}</div></div>
@@ -559,7 +559,7 @@ function renderProfile() {
   h += `<div class="panel" id="ps-people"><div class="field"><h2 class="sec">${esc(t("favs_title"))}</h2>${favRows ? `<div>${favRows}</div>` : `<p class="hint">${esc(t("favs_empty"))}</p>`}</div><div class="field"><h2 class="sec">${esc(t("blocked_title"))}</h2>${blkRows ? `<div>${blkRows}</div>` : `<p class="hint">${esc(t("blocked_empty"))}</p>`}</div></div>`;
   h += linksPanel();
   h += `<div class="panel" id="ps-cm"><div class="field" style="gap:4px"><h2 class="sec">${esc(t("lv_cm_about"))}</h2><p class="hint">${esc(t("lv_cm_about_note"))}</p></div><div id="cmBox" data-uid="${esc(ME.id)}"><p class="hint">…</p></div></div>`;
-  h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-action="lv-logout">${esc(t("lv_logout"))}</button><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
+  h += `<div class="panel" id="ps-acc"><h2 class="sec">${esc(t("lv_acc"))}</h2><div class="lv-id"><b>${esc(pr.nick)}</b><span>${esc(ME.email || t("lv_via")[ME.tg ? "tg" : "vk"])}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost small danger" data-action="lv-delete-acc">${ICON.trash}${esc(t("lv_del_acc"))}</button></div></div></div>`;
   $("#page").innerHTML = h;
   profileFold();
   loadComments(ME.id);
