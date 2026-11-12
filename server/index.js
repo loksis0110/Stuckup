@@ -48,6 +48,25 @@ function out(status, headers, body, b64, setCookies) {
   return r;
 }
 
+let SLUGS = {}; try { SLUGS = JSON.parse(fs.readFileSync(path.join(STATIC, "g/slugs.json"), "utf8")); } catch (e) {}
+const META = require("./meta.json"), { rankText } = require("./jobs");
+const escH = x => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const plural = (n, a, b, c) => n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c;
+// landing page of a game with the current listings rendered on the server (visible to search engines)
+async function gamePage(key, method, headers) {
+  const G = META.games[key], posts = (await api.seo(key)).slice(0, 20), now = Date.now();
+  const ago = t => { const m = Math.max(1, Math.round((now - t) / 60000)); return m < 60 ? m + " мин назад" : Math.round(m / 60) + " ч назад"; };
+  const list = posts.length ? '<ul class="list">' + posts.map(p => {
+    const size = G.msize[p.mode] || G.size, roles = (p.roles || []).map(r => (G.roleNames[r] || r)).join(", ");
+    return `<li><div class="h"><b>${escH(p.nick)}</b><span>${(() => { const mn = G.modeNames[p.mode] || p.mode, rt = rankText(p.r); return escH(rt.startsWith(mn) ? rt : mn + " · " + rt); })()}${p.ver ? " · подтверждён" : ""}</span><span>ищет ${size - p.have}${roles ? " · " + escH(roles) : ""}</span><span>${ago(p.t0)}</span></div>${p.note ? `<p>${escH(p.note)}</p>` : ""}</li>`;
+  }).join("") + "</ul>" : `<p class="muted">Прямо сейчас объявлений нет — разместите своё первым, его увидят все, кто ищет пати в ${escH(G.name)}.</p>`;
+  const body = Buffer.from(asset("g/" + key + ".html").raw.toString("utf8").replace("<!--COUNT-->", posts.length ? posts.length + " " + plural(posts.length, "объявление", "объявления", "объявлений") : "").replace("<!--LIST-->", list));
+  const h = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=60", "Content-Security-Policy": CSP, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin" };
+  if (method === "HEAD") return out(200, h, "");
+  if (/\bgzip\b/.test(headers["accept-encoding"] || "")) { h["Content-Encoding"] = "gzip"; h.Vary = "Accept-Encoding"; return out(200, h, zlib.gzipSync(body).toString("base64"), true); }
+  return out(200, h, body.toString("utf8"));
+}
+
 async function handler(event, context) {
   event = event || {};
   if (db.setToken && context && context.token) db.setToken(context.token.access_token);
@@ -72,6 +91,8 @@ async function handler(event, context) {
   }
 
   if (method !== "GET" && method !== "HEAD") return out(405, { "Content-Type": "text/plain; charset=utf-8" }, "Method not allowed");
+  const gameKey = SLUGS[p];
+  if (gameKey && asset("g/" + gameKey + ".html")) return gamePage(gameKey, method, headers);
   let rel = PAGES[p] || p.slice(1), status = 200, f = asset(rel);
   if (!f) { f = asset("404.html"); status = 404; if (!f) return out(404, { "Content-Type": "text/plain; charset=utf-8" }, "Not found"); }
   const h = { "Content-Type": f.type, ETag: f.etag, "X-Content-Type-Options": "nosniff", "Cache-Control": f.html ? "no-cache" : rel.startsWith("fonts/") ? "public, max-age=31536000, immutable" : "public, max-age=86400" };

@@ -61,6 +61,8 @@ for a, b2 in [
     assert a in shell, a
     shell = shell.replace(a, b2)
 shell = re.sub(r'(<h1 class="sr-only" data-i18n="about_title">)[^<]*', r"\1Stuckup — поиск тиммейтов", shell)
+_gl = '<p class="lv-glinks">' + "".join(f'<a href="/{v}">{n}</a>' for v, n in [("cs2", "CS2"), ("dota2", "Dota 2"), ("valorant", "Valorant"), ("league-of-legends", "LoL"), ("deadlock", "Deadlock"), ("marvel-rivals", "Marvel Rivals"), ("apex-legends", "Apex"), ("pubg", "PUBG"), ("fortnite", "Fortnite"), ("standoff2", "Standoff 2"), ("pubg-mobile", "PUBG Mobile")]) + "</p>"
+shell = shell.replace('<p class="lv-links">', _gl + '<p class="lv-links">', 1)
 shell = re.sub(r'(<p data-i18n="about_text">)[^<]*', r"\1Stuckup — поиск тиммейтов своего ранга в Dota 2, CS2 (Premier и FACEIT), Valorant, League of Legends, Deadlock, Marvel Rivals, Apex Legends, PUBG, Fortnite, Standoff 2 и PUBG Mobile. Размести объявление — и игроки напишут тебе в Discord или Telegram.", shell)
 html = shell.replace("/*APP*/", app)
 
@@ -127,7 +129,21 @@ for f in (W / "assets").iterdir():
     if f.is_file(): shutil.copy(f, OUT / f.name)
 today = datetime.date.today().isoformat()
 (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {SITE}/sitemap.xml\n")
-urls = "".join(f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod></url>\n" for p in ("/", "/rules", "/privacy"))
+# ---------- game landing pages (the list of listings is filled in by the server) ----------
+import importlib.util, html as _h
+_spec = importlib.util.spec_from_file_location("games", W / "pages" / "games.py"); GP = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(GP)
+(OUT / "g").mkdir(exist_ok=True)
+metrika_tag = '<script>(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(%d,"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true});</script>' % METRIKA
+for key, slug in GP.SLUGS.items():
+    name, intro, feats = GP.TEXT[key]
+    desc = "Поиск тиммейтов в " + name + ": найдите пати и команду по своему рангу. " + intro.split(". ")[0].rstrip(".") + "."
+    ld = json.dumps({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in GP.FAQ]}, ensure_ascii=False)
+    others = "".join(f'<a href="/{s2}">{_h.escape(GP.TEXT[k2][0])}</a>' for k2, s2 in GP.SLUGS.items() if k2 != key)
+    page = GP.PAGE.format(name=_h.escape(name), slug=slug, key=key, site=SITE, desc=_h.escape(desc), intro=_h.escape(intro), ld=ld, metrika=metrika_tag,
+        feats="".join("<li>" + _h.escape(f) + "</li>" for f in feats), faq="".join(f"<details><summary>{_h.escape(q)}</summary><p>{_h.escape(a)}</p></details>" for q, a in GP.FAQ), others=others)
+    (OUT / "g" / (key + ".html")).write_text(page)
+(OUT / "g" / "slugs.json").write_text(json.dumps({"/" + v: k for k, v in GP.SLUGS.items()}))
+urls = "".join(f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod></url>\n" for p in ["/"] + ["/" + v for v in GP.SLUGS.values()] + ["/rules", "/privacy"])
 (OUT / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n')
 (OUT / "site.webmanifest").write_text(json.dumps({"name": "Stuckup", "short_name": "Stuckup", "start_url": "/", "display": "standalone", "background_color": "#0b0d12", "theme_color": "#0b0d12",
     "icons": [{"src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png"}, {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}]}, ensure_ascii=False, indent=1))

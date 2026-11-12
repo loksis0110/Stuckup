@@ -478,6 +478,7 @@ module.exports = function makeApi(db, opts) {
   ].concat(teams.routes, admin.routes, social.routes, jobs.routes);
 
   handle.cron = () => jobs.cron();
+  handle.seo = async game => (await loadFeed()).filter(p => p.game === game).sort((a, b) => b.t0 - a.t0);
   return handle;
   async function handle(req) {
     try {
