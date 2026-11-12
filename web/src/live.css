@@ -184,3 +184,9 @@ button.lock.lv-lock:hover { border-color: var(--accent-line); color: var(--fg); 
 .composer { gap: 4px; }
 .lv-glinks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .lv-glinks a { color: var(--fg-2); }
+
+.lv-recent { margin-top: 18px; display: grid; gap: 10px; }
+.lv-recent-h h3 { margin: 0; font: 600 12px var(--f-display, inherit); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lv-recent-h .hint { margin: 4px 0 0; }
+.card.lv-row.lv-old:not(.open) { opacity: .72; }
+.lv-oldtag { flex: none; font-size: 11.5px; color: var(--faint); font-weight: 500; }

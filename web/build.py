@@ -125,6 +125,7 @@ shutil.copy(W / "pages" / "admin.html", OUT / "admin.html")
 
 # ---------- assets ----------
 shutil.copytree(W / "assets" / "fonts", OUT / "fonts")
+shutil.copytree(W / "assets" / "og", OUT / "og")
 for f in (W / "assets").iterdir():
     if f.is_file(): shutil.copy(f, OUT / f.name)
 today = datetime.date.today().isoformat()
@@ -142,8 +143,43 @@ for key, slug in GP.SLUGS.items():
     page = GP.PAGE.format(name=_h.escape(name), slug=slug, key=key, site=SITE, desc=_h.escape(desc), intro=_h.escape(intro), ld=ld, metrika=metrika_tag,
         feats="".join("<li>" + _h.escape(f) + "</li>" for f in feats), faq="".join(f"<details><summary>{_h.escape(q)}</summary><p>{_h.escape(a)}</p></details>" for q, a in GP.FAQ), others=others)
     (OUT / "g" / (key + ".html")).write_text(page)
+# rank reference pages
+_A = (SRC / "app.js").read_text()
+def _arr(sysname, lang):
+    i = _A.index("  " + sysname + ": {", _A.index("const SYS = {")); j = _A.index(lang + ": [", i); k = _A.index("]", j)
+    return json.loads("[" + _A[j + len(lang) + 3:k] + "]")
+TIERDATA = {"COMP": GP._tiers(_arr("comp", "ru"), _arr("comp", "en")), "MEDAL": GP._tiers(_arr("medal", "ru"), _arr("medal", "en"), 5, "stars", 6),
+            "VAL": GP._tiers(_arr("val", "ru"), _arr("val", "en"), 3, "num", 7), "LOL": GP._tiers(_arr("lol", "ru"), _arr("lol", "en"), 4, "roman-desc", 6)}
+(OUT / "ranks").mkdir(exist_ok=True)
+RANK_TPL = GP.PAGE
+for slug, R in GP.RANKS.items():
+    key = R["game"]; name = GP.TEXT[key][0]
+    body = ""
+    for title, note, head, rows in R["sections"]:
+        if isinstance(rows, str):
+            rows = [(str(i + 1),) + tuple(x for x in r if x != "" or len(head) == 4) for i, r in enumerate(TIERDATA[rows])]
+            rows = [r[:len(head)] for r in rows]
+        body += f'<h2>{_h.escape(title)}</h2><p class="muted">{_h.escape(note)}</p><table class="rt"><tr>' + "".join(f"<th>{_h.escape(x)}</th>" for x in head) + "</tr>" + "".join("<tr>" + "".join(f"<td>{_h.escape(str(c))}</td>" for c in r) + "</tr>" for r in rows) + "</table>"
+    page = f"""<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{_h.escape(R["title"])} | Stuckup</title><meta name="description" content="{_h.escape(R["desc"])}"><link rel="canonical" href="{SITE}/ranks/{slug}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0b0d12">
+<meta property="og:type" content="article"><meta property="og:site_name" content="Stuckup"><meta property="og:title" content="{_h.escape(R["title"])}"><meta property="og:description" content="{_h.escape(R["desc"])}"><meta property="og:url" content="{SITE}/ranks/{slug}"><meta property="og:image" content="{SITE}/og/{key}.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
+{metrika_tag}
+<style>{GP.PAGE.split("<style>")[1].split("</style>")[0].replace("{{", "{").replace("}}", "}")}
+table.rt{{width:100%;border-collapse:collapse;font-size:15px;margin:6px 0 8px}}table.rt th{{text-align:left;color:var(--faint);font-weight:500;font-size:13px;padding:8px 10px;border-bottom:1px solid var(--line)}}table.rt td{{padding:9px 10px;border-bottom:1px solid var(--line)}}table.rt tr:nth-child(even) td{{background:var(--panel)}}
+.cta-box{{margin:40px 0 0;padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}}.cta-box p{{margin:0 0 14px;color:var(--fg2)}}</style></head><body>
+<header><div class="wrap"><a class="brand" href="/">STUCK<b>UP</b></a><a href="/{GP.SLUGS[key]}">Тиммейты в {_h.escape(name)}</a></div></header>
+<main><div class="wrap"><h1>{_h.escape(R["title"])}</h1><p class="lead">{_h.escape(R["intro"])}</p>{body}
+<div class="cta-box"><p>Ищете напарников своего ранга? На Stuckup игроки {_h.escape(name)} собирают пати и команды — с фильтром по рангу, роли и времени игры.</p><div class="cta"><a class="btn pri" href="/#/g/{key}">Найти тиммейтов</a><a class="btn" href="/{GP.SLUGS[key]}">Кто сейчас ищет</a></div></div>
+</div></main><footer><div class="wrap"><a href="/">Главная</a><a href="/rules">Правила</a><a href="/privacy">Конфиденциальность</a></div></footer></body></html>"""
+    (OUT / "ranks" / (slug + ".html")).write_text(page)
+RANK_LINKS = {R["game"]: slug for slug, R in GP.RANKS.items()}
+for key in RANK_LINKS:
+    f = OUT / "g" / (key + ".html"); t = f.read_text()
+    t = t.replace('<h2>Как это работает</h2>', f'<p><a href="/ranks/{RANK_LINKS[key]}">Все ранги {_h.escape(GP.TEXT[key][0])} по порядку →</a></p>\n<h2>Как это работает</h2>', 1)
+    f.write_text(t)
 (OUT / "g" / "slugs.json").write_text(json.dumps({"/" + v: k for k, v in GP.SLUGS.items()}))
-urls = "".join(f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod></url>\n" for p in ["/"] + ["/" + v for v in GP.SLUGS.values()] + ["/rules", "/privacy"])
+urls = "".join(f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod></url>\n" for p in ["/"] + ["/" + v for v in GP.SLUGS.values()] + ["/ranks/" + k for k in GP.RANKS] + ["/rules", "/privacy"])
 (OUT / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n')
 (OUT / "site.webmanifest").write_text(json.dumps({"name": "Stuckup", "short_name": "Stuckup", "start_url": "/", "display": "standalone", "background_color": "#0b0d12", "theme_color": "#0b0d12",
     "icons": [{"src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png"}, {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}]}, ensure_ascii=False, indent=1))

@@ -43,7 +43,7 @@ PAGE = """<!doctype html>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0b0d12">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Stuckup"><meta property="og:title" content="Поиск тиммейтов в {name} — Stuckup">
-<meta property="og:description" content="{desc}"><meta property="og:url" content="{site}/{slug}"><meta property="og:image" content="{site}/og.png">
+<meta property="og:description" content="{desc}"><meta property="og:url" content="{site}/{slug}"><meta property="og:image" content="{site}/og/{key}.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{ld}</script>
 {metrika}
 <style>
@@ -97,3 +97,50 @@ footer{{border-top:1px solid var(--line);padding:22px 0 40px;font-size:14px;colo
 </body>
 </html>
 """
+
+# ---------- rank reference pages ----------
+def _tiers(names_ru, names_en, subs=None, sub_style=None, sub_top=None):
+    rows = []
+    for i, (r, e) in enumerate(zip(names_ru, names_en)):
+        d = ""
+        if subs and (sub_top is None or i <= sub_top):
+            d = {"stars": f"{subs} звёзд", "num": f"{subs} ступени (1–{subs})", "roman-desc": "дивизионы " + " → ".join(["IV", "III", "II", "I"][4 - subs:]), "roman": "дивизионы I–" + ["I", "II", "III", "IV", "V", "VI"][subs - 1]}.get(sub_style, f"{subs} ступени")
+        rows.append((r, e, d or "—"))
+    return rows
+
+RANKS = {
+  "cs2": {
+    "title": "Ранги CS2: Premier, FACEIT и звания по порядку",
+    "desc": "Все ранги Counter-Strike 2 по порядку: цвета рейтинга Premier, уровни FACEIT с границами ELO и 18 званий соревновательного режима.",
+    "intro": "В CS2 три системы рангов, и они не связаны между собой: рейтинг Premier (CS Rating), уровень FACEIT и звание в обычном соревновательном режиме — у каждой карты своё.",
+    "sections": [
+      ("Рейтинг Premier (CS Rating)", "Число от 0 и выше. Цвет плашки меняется каждые 5 000 очков.", ["Цвет", "Рейтинг"],
+       [("Серый", "0 – 4 999"), ("Голубой", "5 000 – 9 999"), ("Синий", "10 000 – 14 999"), ("Фиолетовый", "15 000 – 19 999"), ("Розовый", "20 000 – 24 999"), ("Красный", "25 000 – 29 999"), ("Золотой", "30 000 и выше")]),
+      ("Уровни FACEIT", "10 уровней, каждый — диапазон ELO.", ["Уровень", "ELO"],
+       [("1", "100 – 500"), ("2", "501 – 750"), ("3", "751 – 900"), ("4", "901 – 1 050"), ("5", "1 051 – 1 200"), ("6", "1 201 – 1 350"), ("7", "1 351 – 1 530"), ("8", "1 531 – 1 750"), ("9", "1 751 – 2 000"), ("10", "2 001 и выше")]),
+      ("Звания соревновательного режима", "18 званий от Серебра I до Глобальной элиты. Звание своё на каждой карте.", ["№", "Звание", "In English"], "COMP"),
+    ],
+    "game": "cs2",
+  },
+  "dota2": {
+    "title": "Ранги Dota 2: все медали по порядку",
+    "desc": "Медали Dota 2 по порядку — от Рекрута до Титана: восемь медалей, у каждой пять звёзд, у Титана — место в таблице лидеров.",
+    "intro": "Рейтинг в Dota 2 показывается медалью. Медалей восемь, у первых семи по пять звёзд. На вершине — Титан (Immortal): вместо звёзд у него номер в таблице лидеров региона.",
+    "sections": [("Медали", "От младшей к старшей.", ["№", "Медаль", "In English", "Ступени"], "MEDAL")],
+    "game": "dota",
+  },
+  "valorant": {
+    "title": "Ранги Valorant по порядку",
+    "desc": "Все ранги Valorant по порядку: от Железа до Радианта, у каждого ранга кроме Радианта — три ступени.",
+    "intro": "В Valorant девять рангов. У первых восьми по три ступени (например, Золото 1, 2, 3), Радиант — один, это лучшие игроки региона.",
+    "sections": [("Ранги", "От младшего к старшему.", ["№", "Ранг", "In English", "Ступени"], "VAL")],
+    "game": "valorant",
+  },
+  "lol": {
+    "title": "Ранги League of Legends по порядку",
+    "desc": "Все ранги League of Legends по порядку: от Железа до Претендента, дивизионы IV–I и высшие лиги без дивизионов.",
+    "intro": "В League of Legends десять рангов. С Железа по Алмаз у каждого четыре дивизиона — от IV к I. Мастер, Грандмастер и Претендент дивизионов не имеют.",
+    "sections": [("Ранги", "От младшего к старшему.", ["№", "Ранг", "In English", "Дивизионы"], "LOL")],
+    "game": "lol",
+  },
+}

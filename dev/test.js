@@ -401,3 +401,21 @@ test("chat media: signed upload, media message, report and moderation", async ()
   assert.equal(after.media.url, null);
   delete process.env.ADMIN_PASSWORD;
 });
+
+test("recently expired listings are shown for a day", async () => {
+  const a = client(), b = client(), anon = client();
+  const ua = await signup(a, "rc1@smoke.stuckup.invalid", "RecentA"); await signup(b, "rc2@smoke.stuckup.invalid", "RecentB");
+  await a("PUT", "/api/me", { profile: { dc: "recent.a" } });
+  const post = (await a("POST", "/api/posts", Object.assign({}, POST, { dur: 60 }))).json.post;
+  // let it expire
+  const { db } = require("../server/index.js"); const raw = await db.get("p", post.id); raw.exp = Date.now() - 1000; await db.put("p", post.id, raw);
+  await new Promise(r => setTimeout(r, 4100)); // feed cache
+  const f = (await anon("GET", "/api/posts")).json;
+  assert.equal(f.posts.some(p => p.id === post.id), false);
+  const rec = f.recent.find(p => p.id === post.id); assert.ok(rec); assert.equal(rec.c, null);
+  assert.equal((await a("GET", "/api/posts")).json.recent.some(p => p.id === post.id), false); // not shown to the author
+  assert.ok((await b("GET", "/api/chats/" + ua.id)).status === 200);
+  await a("DELETE", "/api/me", { password: "password1" });
+  await new Promise(r => setTimeout(r, 4100));
+  assert.equal((await anon("GET", "/api/posts")).json.recent.some(p => p.id === post.id), false);
+});

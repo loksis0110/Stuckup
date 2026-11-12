@@ -7,7 +7,7 @@ function card(p) {
   const G = GAMES[p.game], open = LV.open === p.id, id = esc(p.id), match = !p.mine && !!ME && isMatch(p), fav = !p.mine && S.favs.includes(p.uid);
   const size = partySize(p), have = Math.min(p.have || 1, size - 1);
   const marks = (p.ver ? `<span class="ver" title="${esc(t("lv_verified"))}">${ICON.shield}</span>` : "") + (fav ? `<span class="lv-fav" title="${esc(t("fav_on"))}">${ICON.star}</span>` : "") + (match ? `<span class="lv-match" title="${esc(t("match_tag"))}">${ICON.target}</span>` : "");
-  const head = `<button class="lv-rh" data-action="lv-open" data-id="${id}" aria-expanded="${open}">${avatar(p.nick, p.on && !p.mine)}<span class="lv-rw"><span class="lv-rn"><b>${esc(p.nick)}</b>${marks}${p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : ""}</span><span class="lv-rm"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span class="lv-need">${esc(t("need_short", size - have))}</span><span class="lv-roles">${esc(p.roles.map(r => roleName(p.game, r)).join(", "))}</span></span></span>${badge(p.r)}${CHEV}</button>`;
+  const head = `<button class="lv-rh" data-action="lv-open" data-id="${id}" aria-expanded="${open}">${avatar(p.nick, p.on && !p.mine)}<span class="lv-rw"><span class="lv-rn"><b>${esc(p.nick)}</b>${marks}${p.mine ? `<span class="mine-tag">${esc(t("your_post"))}</span>` : ""}${p.old ? `<span class="lv-oldtag">${esc(t("lv_old_ago", rel(p.ended)))}</span>` : ""}</span><span class="lv-rm"><span class="gtag"><i></i>${esc(gshort(p.game))}</span><span>${esc(modeName(p.game, p.mode))}</span><span class="lv-need">${esc(t("need_short", size - have))}</span><span class="lv-roles">${esc(p.roles.map(r => roleName(p.game, r)).join(", "))}</span></span></span>${badge(p.r)}${CHEV}</button>`;
   let body = "";
   if (open) {
     const tags = `${p.style ? `<span class="sty">${esc(t("styles")[p.style])}</span>` : ""}${(p.stags || []).map(x => `<span class="safe">${esc(t("stags")[x])}</span>`).join("")}<span>${ICON.globe}${esc(regionName(p.region))} · ${esc(p.langs.map(x => x.toUpperCase()).join("/"))}</span><span>${p.mic ? ICON.mic + esc(t("mic")) : ICON.nomic + esc(t("no_mic"))}</span>${(p.when || []).map(w => `<span>${ICON.clock}${esc(t("times")[w])}</span>`).join("")}<span>${esc(rel(p.t0))}</span>`;
@@ -16,7 +16,7 @@ function card(p) {
       : `<div class="lv-ra"><button class="btn primary small" data-action="open-chat" data-id="${id}">${ICON.chat}${esc(t("write"))}</button><button class="btn small${S.stacks[p.game].includes(p.uid) ? " on" : ""}" data-action="toggle-stack" data-id="${id}">${S.stacks[p.game].includes(p.uid) ? ICON.check + esc(t("in_stack")) : ICON.plus + esc(t("lv_stack_add"))}</button><button class="iconbtn${fav ? " on" : ""}" data-action="fav" data-id="${id}" aria-pressed="${fav}" aria-label="${esc(fav ? t("fav_on") : t("fav_add"))}" title="${esc(fav ? t("fav_on") : t("fav_add"))}">${ICON.star}</button><span class="sp"></span><button class="btn ghost small" data-action="player" data-id="${id}">${esc(t("lv_more"))}</button></div>`;
     body = `<div class="lv-rb">${noteOf(p) ? `<p class="note">${esc(noteOf(p))}</p>` : ""}<div class="tags">${tags}</div>${hasC(p) ? `<div class="lv-rc">${contactsInner(p)}</div>` : ""}${acts}</div>`;
   }
-  return `<article class="card lv-row${p.mine ? " mine" : ""}${open ? " open" : ""}" data-id="${id}" style="--g:var(${G.color})">${head}${body}</article>`;
+  return `<article class="card lv-row${p.mine ? " mine" : ""}${p.old ? " lv-old" : ""}${open ? " open" : ""}" data-id="${id}" style="--g:var(${G.color})">${head}${body}</article>`;
 }
 function toggleRow(id) {
   const prev = LV.open; LV.open = prev === id ? null : id;
@@ -92,7 +92,19 @@ function followBtn() {
   const on = !!(ME && (ME.subs || {})[S.game]);
   head.insertAdjacentHTML("beforeend", `<button class="btn ghost small lv-follow${on ? " on" : ""}" data-action="lv-follow" data-g="${S.game}">${on ? ICON.check + esc(t("lv_following")) : ICON.bell + esc(t("lv_follow"))}</button>`);
 }
-function renderFeed() { renderFeedCore(); followBtn(); }
+Object.assign(T.ru, { lv_recent_t: "Недавно искали", lv_recent_d: "Эти объявления уже сняты по сроку, но игроки могли ещё не найти команду — напишите им.", lv_old_ago: w => "искал(а) " + w });
+Object.assign(T.en, { lv_recent_t: "Recently looking", lv_recent_d: "These listings have expired, but the players may still be looking — message them.", lv_old_ago: w => "looked " + w });
+function findPost(id) { return findPost__base(id) || (LV.recent || []).find(p => p.id === id) || null; }
+// while the feed of a game is short, show who was looking during the last day
+function renderRecent() {
+  const list = $("#list"); if (!list || !LV.ready) return;
+  const act = activePosts().filter(p => S.game === "all" || p.game === S.game);
+  if (act.length >= 6) return;
+  const rec = (LV.recent || []).filter(p => (S.game === "all" || p.game === S.game) && !S.blocked.includes(p.uid) && !act.some(a => a.uid === p.uid && a.game === p.game)).slice(0, 12);
+  if (!rec.length) return;
+  list.insertAdjacentHTML("beforeend", `<section class="lv-recent"><div class="lv-recent-h"><h3>${esc(t("lv_recent_t"))}</h3><p class="hint">${esc(t("lv_recent_d"))}</p></div><div class="list">${rec.map(card).join("")}</div></section>`);
+}
+function renderFeed() { renderFeedCore(); renderRecent(); followBtn(); }
 document.addEventListener("change", e => { const el = e.target.closest && e.target.closest("[data-mailp]"); if (el) setMailPref(el.dataset.mailp, el.checked); });
 document.addEventListener("click", e => { const a = e.target.closest("[data-action]"); if (!a) return;
   if (a.dataset.action === "lv-follow") { e.stopPropagation(); if (!ME) authSheet("login"); else followSheet(a.dataset.g); }

@@ -37,6 +37,7 @@ module.exports = function makeAdmin(ctx) {
   async function banUser(u, reason) {
     u.banned = { t: Date.now(), reason: String(reason || "").slice(0, 200) }; u.sv = (u.sv || 0) + 1;
     for (const g of Object.keys(u.posts || {})) await db.del("p", u.posts[g]);
+    for (const row of await db.list("pr")) if (row.d.uid === u.id) await db.del("pr", row.sk);
     u.posts = {};
     await db.put("u", u.id, u);
     hooks.feedDirty();

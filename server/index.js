@@ -99,6 +99,7 @@ async function handler(event, context) {
   const gameKey = SLUGS[p];
   if (gameKey && asset("g/" + gameKey + ".html")) return gamePage(gameKey, method, headers);
   let rel = PAGES[p] || p.slice(1), status = 200, f = asset(rel);
+  if (!f && /^ranks\/[a-z0-9-]+$/.test(rel)) { rel += ".html"; f = asset(rel); }
   if (!f) { f = asset("404.html"); status = 404; if (!f) return out(404, { "Content-Type": "text/plain; charset=utf-8" }, "Not found"); }
   const h = { "Content-Type": f.type, ETag: f.etag, "X-Content-Type-Options": "nosniff", "Cache-Control": f.html ? "no-cache" : rel.startsWith("fonts/") ? "public, max-age=31536000, immutable" : "public, max-age=86400" };
   if (f.html) { h["Content-Security-Policy"] = CSP; h["Referrer-Policy"] = "strict-origin-when-cross-origin"; h["X-Frame-Options"] = "DENY"; }

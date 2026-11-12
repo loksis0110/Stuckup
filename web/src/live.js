@@ -194,6 +194,7 @@ async function refreshFeed(silent) {
   LV.skew = Math.abs(skew) > 5000 ? skew : 0;
   const before = LV.sig;
   setFeed(r.posts);
+  LV.recent = (r.recent || []).map(x => Object.assign(adoptPost(x), { old: true, ended: x.ended - LV.skew, mine: false }));
   LV.ready = true; LV.loadErr = false; LV.feedAt = Date.now();
   return before !== LV.sig || true;
 }

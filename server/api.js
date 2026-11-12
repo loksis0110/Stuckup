@@ -2,7 +2,7 @@
 const A = require("./auth"), V = require("./validate"), mail = require("./mail");
 const META = V.META;
 
-const ONLINE_MS = 5 * 60000, MSG_MAX = 500;
+const ONLINE_MS = 5 * 60000, MSG_MAX = 500, RECENT_MS = 86400000;
 const MB = 1048576;
 const MEDIA = { photo: { types: ["image/jpeg", "image/png", "image/webp", "image/gif"], max: 10 * MB }, voice: { types: ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/aac"], max: 5 * MB, dur: 300 },
   video: { types: ["video/mp4", "video/webm", "video/quicktime"], max: 50 * MB, dur: 600 }, circle: { types: ["video/webm", "video/mp4"], max: 20 * MB, dur: 60 } };
@@ -54,12 +54,24 @@ module.exports = function makeApi(db, opts) {
     for (const row of rows) (row.d.exp > now ? live : dead).push(row.d);
     for (const p of dead.slice(0, 20)) {
       await db.del("p", p.id);
+      await db.put("pr", p.id, Object.assign({}, p, { ended: p.exp }));
       const u = await db.get("u", p.uid);
       if (u) { toArchive(u, p, "expired"); if (u.posts && u.posts[p.game] === p.id) delete u.posts[p.game]; await db.put("u", u.id, u); }
     }
     for (const row of await db.list("on")) { if (now - row.d.t < ONLINE_MS) on[row.sk] = true; else if (now - row.d.t > 86400000) await db.del("on", row.sk); }
     for (const p of live) p.on = !!on[p.uid];
-    if (g0 === feedGen) feed = { t: now, posts: live, on };
+    // listings that expired during the last day: shown as "recently looking" while the feed is short
+    const recent = [];
+    for (const row of await db.list("pr")) {
+      const p = row.d;
+      if (now - p.ended > RECENT_MS) { await db.del("pr", row.sk); continue; }
+      if (live.some(x => x.uid === p.uid && x.game === p.game)) continue;
+      p.on = !!on[p.uid]; recent.push(p);
+    }
+    recent.sort((a, b) => b.ended - a.ended);
+    if (g0 === feedGen) feed = { t: now, posts: live, on, recent: recent.slice(0, 60) };
+    else feed = feed || null;
+    loadFeed.recent = recent.slice(0, 60);
     return live;
   }
   function toArchive(u, p, reason) {
@@ -219,6 +231,7 @@ module.exports = function makeApi(db, opts) {
     if (u.pass ? !(await A.checkPassword(String(req.json.password == null ? "" : req.json.password), u.pass)) : String(req.json.confirm || "") !== u.nick) throw new Http(401, "bad_password");
     for (const g of Object.keys(u.posts || {})) await db.del("p", u.posts[g]);
     await jobs.userGone(u);
+    for (const row of await db.list("pr")) if (row.d.uid === u.id) await db.del("pr", row.sk);
     for (const cv of await db.list("cv:" + u.id)) {
       const cid = cidOf(u.id, cv.sk);
       for (const m of await db.list("m:" + cid)) { if (m.d.media) { try { await storage.del(m.d.media.key); } catch (e) {} } await db.del("m:" + cid, m.sk); }
@@ -250,8 +263,8 @@ module.exports = function makeApi(db, opts) {
 
   /* ---------- listings ---------- */
   async function listPosts(req) {
-    const u = await currentUser(req), posts = await loadFeed();
-    return { body: { posts: posts.map(p => view(p, u)), now: Date.now() } };
+    const u = await currentUser(req), posts = await loadFeed(), recent = (feed && feed.recent) || loadFeed.recent || [];
+    return { body: { posts: posts.map(p => view(p, u)), recent: recent.filter(p => !u || p.uid !== u.id).map(p => view(p, u)), now: Date.now() } };
   }
   async function createPost(req) {
     const u = await need(req), prof = u.profile;
